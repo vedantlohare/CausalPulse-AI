@@ -205,17 +205,22 @@ if tab_selection == "Live Diagnostic Workspace":
     if 'last_diagnostic' in st.session_state:
         data = st.session_state['last_diagnostic']
         elapsed = st.session_state.get('last_elapsed', 45.0)
+        ambiguity = data.get('ambiguity_analysis', {})
+        diagnostics = data.get('diagnostics', {})
+        anomalies = diagnostics.get('anomalies', {})
+        root_causes = diagnostics.get('root_causes', [])
+        confidence_score = ambiguity.get('confidence_score', 1.0)
         
         # Top banner stats
         b1, b2, b3, b4, b5 = st.columns(5)
         with b1:
             st.markdown(f"<div class='metric-card'><span class='badge badge-info'>Persona</span><h3>{role}</h3></div>", unsafe_allow_html=True)
         with b2:
-            st.markdown(f"<div class='metric-card'><span class='badge badge-warning'>Confidence Score</span><h3>{data['ambiguity_analysis']['confidence_score']} / 1.0</h3></div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='metric-card'><span class='badge badge-warning'>Confidence Score</span><h3>{confidence_score} / 1.0</h3></div>", unsafe_allow_html=True)
         with b3:
             st.markdown(f"<div class='metric-card'><span class='badge badge-success'>Execution Latency</span><h3>{elapsed} ms</h3></div>", unsafe_allow_html=True)
         with b4:
-            st.markdown(f"<div class='metric-card'><span class='badge badge-info'>Anomalies Detected</span><h3>{len(data['diagnostics']['anomalies'])} Nodes</h3></div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='metric-card'><span class='badge badge-info'>Anomalies Detected</span><h3>{len(anomalies)} Nodes</h3></div>", unsafe_allow_html=True)
         
         # Telemetry Estimation (Tokens)
         estimated_tokens = len(data.get("executive_summary", "")) // 4 + 650
@@ -226,25 +231,25 @@ if tab_selection == "Live Diagnostic Workspace":
         st.markdown("<br>", unsafe_allow_html=True)
         
         # 1. Executive Summary
-        if not data["ambiguity_analysis"]["is_ambiguous"]:
+        if not ambiguity.get("is_ambiguous", False):
             st.markdown("<div class='summary-card'>", unsafe_allow_html=True)
             st.subheader(f"📋 Executive Briefing ({role} Persona)")
-            st.write(data["executive_summary"])
+            st.write(data.get("executive_summary", data.get("message", "System operating within baseline.")))
             st.markdown("</div>", unsafe_allow_html=True)
         else:
             st.markdown("<div class='ambiguity-card'>", unsafe_allow_html=True)
             st.subheader("⚠️ Active Ambiguity Mode (Confidence < 0.65)")
-            st.write(data["ambiguity_analysis"]["reason"])
+            st.write(ambiguity.get("reason", "Ambiguous diagnostic signals detected."))
             st.markdown("#### Guided Diagnostic Hypothesis Tree")
-            for hyp in data["ambiguity_analysis"]["hypothesis_tree"]:
+            for hyp in ambiguity.get("hypothesis_tree", []):
                 st.write(f"- {hyp}")
             st.markdown("#### Recommended Supplementary Queries")
-            for q in data["ambiguity_analysis"]["recommended_queries"]:
+            for q in ambiguity.get("recommended_queries", []):
                 st.code(q, language="sql")
             st.markdown("</div>", unsafe_allow_html=True)
             
         # Download Report Feature
-        report_content = f"# CausalPulse AI - Executive Diagnostic Report\n\n**Persona:** {role}\n**Confidence Score:** {data['ambiguity_analysis']['confidence_score']}\n\n## Executive Summary\n{data.get('executive_summary', 'Ambiguity mode active. Further queries required.')}\n\n## Root Causes Detected\n- " + "\n- ".join(data['diagnostics']['root_causes']) + "\n\n## System Anomalies\n- " + "\n- ".join(data['diagnostics']['anomalies'].keys())
+        report_content = f"# CausalPulse AI - Executive Diagnostic Report\n\n**Persona:** {role}\n**Confidence Score:** {confidence_score}\n\n## Executive Summary\n{data.get('executive_summary', data.get('message', 'All systems nominal.'))}\n\n## Root Causes Detected\n- " + ("\n- ".join(root_causes) if root_causes else "None (System Healthy)") + "\n\n## System Anomalies\n- " + ("\n- ".join(anomalies.keys()) if anomalies else "None (All metrics in baseline)")
         st.download_button(
             label="📥 Download Executive PDF / Markdown Report",
             data=report_content,
@@ -255,7 +260,7 @@ if tab_selection == "Live Diagnostic Workspace":
             
         # 2. Financial Impact Breakdown
         st.subheader("💰 Real-Time Financial Impact Quantification")
-        impacts = data["diagnostics"]["financial_impact"]
+        impacts = diagnostics.get("financial_impact", {})
         if impacts:
             f_cols = st.columns(len(impacts))
             for i, (metric, imp) in enumerate(impacts.items()):
@@ -263,12 +268,12 @@ if tab_selection == "Live Diagnostic Workspace":
                     st.markdown(f"""
                         <div class='metric-card'>
                             <h5>{metric.replace('_', ' ').title()}</h5>
-                            <h3 style='color: #FC8181;'>-${imp['financial_impact_usd']:,.2f}</h3>
-                            <p style='color: #A0AEC0; font-size: 0.85em;'>{imp['description']}</p>
+                            <h3 style='color: #FC8181;'>-${imp.get('financial_impact_usd', 0.0):,.2f}</h3>
+                            <p style='color: #A0AEC0; font-size: 0.85em;'>{imp.get('description', '')}</p>
                         </div>
                     """, unsafe_allow_html=True)
         else:
-            st.info("No direct financial drain computed on current metrics.")
+            st.info("✅ No financial drain computed. All metric thresholds are within acceptable enterprise variance.")
             
         st.markdown("<br>", unsafe_allow_html=True)
         
@@ -277,16 +282,20 @@ if tab_selection == "Live Diagnostic Workspace":
         with col_dag:
             contract = load_kpi_contract()
             render_causal_graph(
-                data["diagnostics"]["root_causes"], 
-                data["diagnostics"]["anomalies"], 
+                root_causes, 
+                anomalies, 
                 contract
             )
         with col_rag:
             st.subheader("🔍 Qualitative Log Evidence (RAG)")
             st.caption("Masked PII Guardrails Applied (`[REDACTED_PII]`)")
-            for ctx in data["evidence"]["rag_context"]:
-                meta = ctx['metadata']
-                st.info(f"**{meta['source']} ({meta['type']}) | {meta['timestamp']}**\n\n{ctx['content']}")
+            rag_list = data.get("evidence", {}).get("rag_context", [])
+            if rag_list:
+                for ctx in rag_list:
+                    meta = ctx.get('metadata', {})
+                    st.info(f"**{meta.get('source', 'Log')} ({meta.get('type', 'Alert')}) | {meta.get('timestamp', '')}**\n\n{ctx.get('content', '')}")
+            else:
+                st.info("ℹ️ No active operational alerts or incident complaints logged for the current healthy baseline.")
                 
         # 4. Action Levers & Counterfactual Simulator
         st.divider()

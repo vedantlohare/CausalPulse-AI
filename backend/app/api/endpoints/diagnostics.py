@@ -53,7 +53,26 @@ async def run_diagnostics(req: DiagnosticRequest):
     anomalies = anomaly_detector.get_latest_anomalies(df, window_hours=req.time_window_hours)
     
     if not anomalies:
-        return {"status": "healthy", "message": "No anomalies detected in the current window."}
+        return {
+            "status": "healthy",
+            "message": "No statistical anomalies detected in the current telemetry window. All KPI Z-scores remain within normal thresholds (|Z| <= 3.0).",
+            "executive_summary": f"✅ System operating normally. All metric baselines are stable across regions and services for the {req.role} persona. No revenue leakage or infrastructure bottlenecks detected.",
+            "diagnostics": {
+                "root_causes": [],
+                "anomalies": {},
+                "financial_impact": {}
+            },
+            "ambiguity_analysis": {
+                "is_ambiguous": False,
+                "confidence_score": 1.0,
+                "reason": "All operational metrics within standard baseline boundaries.",
+                "hypothesis_tree": [],
+                "recommended_queries": []
+            },
+            "evidence": {
+                "rag_context": []
+            }
+        }
         
     # 2. Causal Attribution (Engine 1)
     root_causes = causal_graph.trace_root_cause(anomalies)
