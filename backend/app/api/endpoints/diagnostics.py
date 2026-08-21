@@ -165,7 +165,8 @@ async def run_diagnostics(req: DiagnosticRequest):
     for metric, data in anomalies.items():
         # Estimate based on deviation from baseline
         delta = data['value'] - data['baseline']
-        impact = financial_quantifier.quantify_impact(metric, delta, req.time_window_hours)
+        actual_duration = data.get('duration_hours', 1)
+        impact = financial_quantifier.quantify_impact(metric, delta, actual_duration)
         if impact['financial_impact_usd'] > 0:
             # RBAC Entitlement Enforcement for Financials
             val = impact['financial_impact_usd']

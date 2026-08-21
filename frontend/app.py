@@ -329,10 +329,12 @@ if tab_selection == "Live Diagnostic Workspace":
             attribution = diagnostics.get("attribution_scores", {})
             if attribution and root_causes:
                 st.markdown("### 🧮 Evidence Provenance Matrix")
-                for rc in root_causes:
+                sorted_rcs = sorted(root_causes, key=lambda rc: attribution.get(rc, {}).get("overall_score", 0), reverse=True)
+                for idx, rc in enumerate(sorted_rcs):
                     if rc in attribution:
                         scores = attribution[rc]
-                        st.markdown(f"**Root Cause Candidate: `{rc}`**")
+                        label = "Primary Driver 🔴" if idx == 0 else "Secondary Contributor 🟠"
+                        st.markdown(f"**{label}: `{rc}`**")
                         st.json({
                             "Overall Attribution Score": f"{scores['overall_score']} / 1.0",
                             "1. Anomaly Strength (z-score logit)": scores['anomaly_strength'],

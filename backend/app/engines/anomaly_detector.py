@@ -47,14 +47,15 @@ class AnomalyDetector:
             recent_annotated = annotated_df[annotated_df['timestamp'] >= cutoff_time]
             anomaly_rows = recent_annotated[recent_annotated['is_anomaly']]
             if not anomaly_rows.empty:
-                # Find the maximum deviation
                 max_row = anomaly_rows.loc[anomaly_rows['z_score'].abs().idxmax()]
+                duration = len(anomaly_rows)
                 anomalies[col] = {
                     "timestamp": max_row['timestamp'],
                     "value": max_row[col],
                     "baseline": max_row['baseline'],
                     "z_score": max_row['z_score'],
-                    "direction": "spike" if max_row['z_score'] > 0 else "drop"
+                    "direction": "spike" if max_row['z_score'] > 0 else "drop",
+                    "duration_hours": duration
                 }
                 
         return anomalies
