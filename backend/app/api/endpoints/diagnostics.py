@@ -34,7 +34,11 @@ class LeverSimulationRequest(BaseModel):
     lever_name: str
 
 def generate_telemetry_df(scenario: str, window_hours: int) -> pd.DataFrame:
-    n = 100 + window_hours
+    if "New Product Launch" in scenario:
+        n = 12 # Less than 24h history
+    else:
+        n = 100 + window_hours
+        
     end_time = pd.Timestamp.now().round("H")
     dates = pd.date_range(end=end_time, periods=n, freq="H")
     
@@ -63,6 +67,9 @@ def generate_telemetry_df(scenario: str, window_hours: int) -> pd.DataFrame:
         revenue[anomaly_idx] += np.random.uniform(30000, 50000, anomaly_len)
     elif "Ambiguous Signal" in scenario:
         revenue[anomaly_idx] -= np.random.uniform(15000, 25000, anomaly_len)
+    elif "New Product Launch" in scenario:
+        # Minor drop, but main issue is lack of history
+        revenue[anomaly_idx] -= np.random.uniform(5000, 10000, anomaly_len)
 
     df = pd.DataFrame({
         "timestamp": dates,
@@ -119,7 +126,7 @@ async def run_diagnostics(req: DiagnosticRequest):
             rag_context.append({"content": safe_text, "metadata": ctx['metadata']})
             
     # 4. Check Ambiguity
-    ambiguity_result = ambiguity_handler.check_ambiguity(root_causes, rag_context)
+    ambiguity_result = ambiguity_handler.check_ambiguity(root_causes, rag_context, history_len=len(df))
     
     # 5. Financial Quantification
     financial_impacts = {}
@@ -128,6 +135,18 @@ async def run_diagnostics(req: DiagnosticRequest):
         delta = data['value'] - data['baseline']
         impact = financial_quantifier.quantify_impact(metric, delta, req.time_window_hours)
         if impact['financial_impact_usd'] > 0:
+            # RBAC Entitlement Enforcement for Financials
+            val = impact['financial_impact_usd']
+            if req.role == "Ops_Lead":
+                if val > 5000000:
+                    impact['financial_impact_display'] = "> $5M Range (Bucketed)"
+                elif val > 1000000:
+                    impact['financial_impact_display'] = "$1M - $5M Range (Bucketed)"
+                else:
+                    impact['financial_impact_display'] = "< $1M Range (Bucketed)"
+            else:
+                impact['financial_impact_display'] = f"-${val:,.2f}"
+            
             financial_impacts[metric] = impact
             
     # 6. Narrative Generation (Executive Output Layer)

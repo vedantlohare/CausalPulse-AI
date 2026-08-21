@@ -107,7 +107,11 @@ Executives can simulate the downstream impact of pulling controllable business l
 ### 6. Enterprise Governance, Telemetry & Cost Control
 * **PII Scrubbing Guardrails (`guardrails_rbac.py`):** Automatically sanitizes credit cards, phone numbers, and emails (`[REDACTED_PII]`) before prompting.
 * **LLM Unit Economics:** Tracks estimated token consumption and cost per diagnostic pulse directly on the UI banner.
-* **Human-in-the-Loop Feedback Loop:** Analyst overrides update the DAG's Bayesian priors over time.
+* **Human-in-the-Loop Feedback Loop:** Analyst overrides continuously fine-tune graph edge weights and statistical priors.
+* **Prescriptive Counterfactual Simulator:** Simulates the recovery percentage of a lever (e.g., `reroute_traffic`) before it is engaged.
+
+### 🧠 The Core Architecture Tradeoff: Deterministic vs. Generative
+A key design decision in CausalPulse AI is **not relying on an LLM for quantitative truth or root-cause guessing**. Instead, we built a **Deterministic Frequentist (Z-Score)** core combined with **DAG Topological Traversal**. We deliberately chose this over formal black-box Causal Discovery (e.g., NOTEARS/LiNGAM) for **speed and absolute auditability**. The LLM is strictly confined to the synthesis layer—reading deterministic proofs and semantic RAG context to generate persona-aware narratives. This mathematically eliminates hallucination in root-cause isolation.
 
 ---
 
@@ -224,7 +228,8 @@ In production enterprise deployments, CausalPulse AI functions as a continuous, 
    │    Live connectors ingest Slack war-rooms, Datadog alerts, and Zendesk tickets.
    │
    └──► 5. Self-Learning Priors (HITL Feedback)
-        Analyst overrides continuously fine-tune graph edge weights and Bayesian priors.
+        Analyst overrides continuously fine-tune graph edge weights and statistical priors.
+    - **Outcome:** The engine learns human business context, continuously improving accuracy.
 ```
 
 ---

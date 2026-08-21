@@ -153,6 +153,7 @@ scenario_preset = st.sidebar.selectbox(
         "🔥 Outage Incident (Redis Failover -> DB Spike -> Revenue Drop)",
         "💳 Payment Gateway Degradation (Third-Party Webhook Latency -> Churn Risk)",
         "⚡ Flash Sale Traffic Surge (5x API Load -> DB Contention)",
+        "📈 New Product Launch (Sparse Data / Insufficient History)",
         "⚠️ Ambiguous Signal (Low Confidence / Abstain Mode)",
         "✅ Steady State Baseline (Healthy / No Anomalies)"
     ]
@@ -165,6 +166,8 @@ if "Outage Incident" in scenario_preset:
 elif "Payment Gateway" in scenario_preset:
     window = 96
 elif "Flash Sale" in scenario_preset:
+    window = 48
+elif "New Product Launch" in scenario_preset:
     window = 48
 elif "Ambiguous Signal" in scenario_preset:
     window = 72
@@ -227,7 +230,7 @@ if tab_selection == "Live Diagnostic Workspace":
         estimated_tokens = len(data.get("executive_summary", "")) // 4 + 650
         cost_estimate = (estimated_tokens / 1000) * 0.0005 # Assuming Gemini Pro cost
         with b5:
-            st.markdown(f"<div class='metric-card'><span class='badge badge-warning'>LLM Telemetry</span><h3>{estimated_tokens} tokens</h3><p style='margin:0; font-size:12px; color:#A0AEC0;'>Est. Cost: ${cost_estimate:.5f}</p></div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='metric-card'><span class='badge badge-warning'>LLM Telemetry</span><h3>{estimated_tokens} tokens</h3><p style='margin:0; font-size:12px; color:#A0AEC0;'>Model Calls: 1 | Est. Cost: ${cost_estimate:.5f}</p></div>", unsafe_allow_html=True)
             
         st.markdown("<br>", unsafe_allow_html=True)
         
@@ -266,10 +269,11 @@ if tab_selection == "Live Diagnostic Workspace":
             f_cols = st.columns(len(impacts))
             for i, (metric, imp) in enumerate(impacts.items()):
                 with f_cols[i]:
+                    display_val = imp.get('financial_impact_display', f"-${imp.get('financial_impact_usd', 0.0):,.2f}")
                     st.markdown(f"""
                         <div class='metric-card'>
                             <h5>{metric.replace('_', ' ').title()}</h5>
-                            <h3 style='color: #FC8181;'>-${imp.get('financial_impact_usd', 0.0):,.2f}</h3>
+                            <h3 style='color: #FC8181;'>{display_val}</h3>
                             <p style='color: #A0AEC0; font-size: 0.85em;'>{imp.get('description', '')}</p>
                         </div>
                     """, unsafe_allow_html=True)

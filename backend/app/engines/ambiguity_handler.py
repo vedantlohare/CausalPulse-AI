@@ -2,12 +2,27 @@ class AmbiguityHandler:
     def __init__(self, confidence_threshold: float = 0.65):
         self.confidence_threshold = confidence_threshold
         
-    def check_ambiguity(self, root_causes: list, rag_context: list) -> dict:
+    def check_ambiguity(self, root_causes: list, rag_context: list, history_len: int = 100) -> dict:
         """
         Determines if the diagnostic result is ambiguous (low confidence).
         Calculates a mock confidence score based on the number of root causes
         and the amount of corroborating RAG context.
         """
+        if history_len < 72:
+            return {
+                "is_ambiguous": True,
+                "confidence_score": 0.1,
+                "reason": "Insufficient Data: History is too sparse (< 72 hours) to establish a reliable statistical baseline.",
+                "hypothesis_tree": [
+                    "Hypothesis 1: The metric is experiencing high variance typical of a new product launch.",
+                    "Hypothesis 2: A true anomaly exists but is mathematically masked by sparse historical data."
+                ],
+                "recommended_queries": [
+                    "Widen the evaluation window if older data exists.",
+                    "Borrow a Bayesian prior from a comparable cohort/category."
+                ]
+            }
+
         if not root_causes:
             return {
                 "is_ambiguous": True,

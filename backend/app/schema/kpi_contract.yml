@@ -4,6 +4,7 @@ kpis:
     owner: "VP of Sales"
     type: "business"
     aggregation: "sum"
+    aggregation_cadence: "1h"
     thresholds:
       warning_drop_pct: 5
       critical_drop_pct: 15
@@ -15,6 +16,7 @@ kpis:
     owner: "Product Manager - Payments"
     type: "product"
     aggregation: "mean"
+    aggregation_cadence: "1h"
     thresholds:
       warning_drop_pct: 2
       critical_drop_pct: 5
