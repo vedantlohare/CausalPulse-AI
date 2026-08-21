@@ -121,8 +121,10 @@ def render_causal_graph(root_causes, anomalies, contract):
 
     fig = go.Figure(data=[edge_trace, node_trace],
              layout=go.Layout(
-                title='<b>Topological Causal Dependency DAG (Directed Acyclic Graph)</b>',
-                titlefont_size=15,
+                title=dict(
+                    text='<b>Topological Causal Dependency DAG (Directed Acyclic Graph)</b>',
+                    font=dict(size=15, color='#E2E8F0')
+                ),
                 showlegend=False,
                 hovermode='closest',
                 margin=dict(b=20,l=5,r=5,t=40),
