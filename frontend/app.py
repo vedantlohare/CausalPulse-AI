@@ -1,0 +1,365 @@
+import streamlit as st
+import requests
+import json
+import networkx as nx
+import plotly.graph_objects as go
+from pathlib import Path
+import yaml
+import time
+
+st.set_page_config(layout="wide", page_title="CausalPulse AI | Enterprise KPI Diagnostic", page_icon="⚡")
+
+# Custom CSS for Premium Design
+st.markdown("""
+    <style>
+    .main {
+        background-color: #0B0E14;
+        color: #FAFAFA;
+        font-family: 'Inter', sans-serif;
+    }
+    .metric-card {
+        background: linear-gradient(145deg, #161B26, #121620);
+        border: 1px solid #283347;
+        border-radius: 12px;
+        padding: 18px;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+    }
+    .summary-card {
+        background: linear-gradient(135deg, #1E2D4A, #121D33);
+        border-radius: 12px;
+        padding: 22px;
+        border-left: 5px solid #38B2AC;
+        margin-bottom: 20px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    }
+    .ambiguity-card {
+        background: linear-gradient(135deg, #4A2E12, #2D1B0B);
+        border-radius: 12px;
+        padding: 22px;
+        border-left: 5px solid #ED8936;
+        margin-bottom: 20px;
+    }
+    .badge {
+        display: inline-block;
+        padding: 4px 10px;
+        border-radius: 6px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+    .badge-success { background-color: #22543D; color: #9AE6B4; }
+    .badge-warning { background-color: #7B341E; color: #FBD38D; }
+    .badge-info { background-color: #2A4365; color: #90CDF4; }
+    </style>
+""", unsafe_allow_html=True)
+
+API_URL = "http://127.0.0.1:8000/api/v1/diagnostics"
+
+def load_kpi_contract():
+    base_dir = Path(__file__).resolve().parent.parent
+    contract_path = base_dir / "backend" / "app" / "schema" / "kpi_contract.yml"
+    if contract_path.exists():
+        with open(contract_path, 'r', encoding='utf-8') as f:
+            return yaml.safe_load(f)
+    return {"kpis": {}, "levers": {}}
+
+def render_causal_graph(root_causes, anomalies, contract):
+    """Renders an interactive DAG using Plotly"""
+    G = nx.DiGraph()
+    kpis = contract.get('kpis', {})
+    for kpi, config in kpis.items():
+        G.add_node(kpi)
+        for up in config.get('upstream_dependencies', []):
+            G.add_edge(up, kpi)
+
+    pos = nx.spring_layout(G, seed=42)
+
+    edge_x, edge_y = [], []
+    for edge in G.edges():
+        x0, y0 = pos[edge[0]]
+        x1, y1 = pos[edge[1]]
+        edge_x.extend([x0, x1, None])
+        edge_y.extend([y0, y1, None])
+
+    edge_trace = go.Scatter(
+        x=edge_x, y=edge_y,
+        line=dict(width=2.5, color='#4A5568'),
+        hoverinfo='none',
+        mode='lines')
+
+    node_x, node_y, node_text, node_color, node_hover = [], [], [], [], []
+    
+    for node in G.nodes():
+        x, y = pos[node]
+        node_x.append(x)
+        node_y.append(y)
+        node_text.append(node.replace("_", " ").title())
+        
+        if node in root_causes:
+            node_color.append('#E53E3E') # Red for root cause
+            node_hover.append(f"<b>Root Cause Node: {node}</b><br>Isolated failure origin")
+        elif node in anomalies:
+            node_color.append('#ED8936') # Orange for downstream anomaly
+            node_hover.append(f"<b>Downstream Anomaly: {node}</b><br>Impacted by root cause")
+        else:
+            node_color.append('#38B2AC') # Teal for healthy
+            node_hover.append(f"<b>Healthy Node: {node}</b>")
+
+    node_trace = go.Scatter(
+        x=node_x, y=node_y,
+        mode='markers+text',
+        hoverinfo='text',
+        text=node_text,
+        hovertext=node_hover,
+        marker=dict(
+            showscale=False,
+            color=node_color,
+            size=36,
+            line=dict(width=2, color='#FFFFFF')),
+        textposition="bottom center",
+        textfont=dict(color='#E2E8F0', size=11, family='Inter'))
+
+    fig = go.Figure(data=[edge_trace, node_trace],
+             layout=go.Layout(
+                title='<b>Topological Causal Dependency DAG (Directed Acyclic Graph)</b>',
+                titlefont_size=15,
+                showlegend=False,
+                hovermode='closest',
+                margin=dict(b=20,l=5,r=5,t=40),
+                paper_bgcolor='rgba(0,0,0,0)',
+                plot_bgcolor='rgba(0,0,0,0)',
+                xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+                yaxis=dict(showgrid=False, zeroline=False, showticklabels=False))
+                )
+    st.plotly_chart(fig, use_container_width=True)
+
+# Main Navigation
+st.sidebar.title("⚡ CausalPulse AI")
+st.sidebar.markdown("##### *Enterprise KPI Diagnostic Engine*")
+st.sidebar.markdown("---")
+
+tab_selection = st.sidebar.radio(
+    "Navigation", 
+    ["Live Diagnostic Workspace", "Semantic KPI Contracts", "Audit Trail & Telemetry", "Continuous Learning Loop"]
+)
+
+# Sidebar settings
+st.sidebar.markdown("### Demo Scenario Selector")
+scenario_preset = st.sidebar.selectbox(
+    "Select Incident Scenario",
+    [
+        "🔥 Outage Incident (Redis Failover -> DB Spike -> Revenue Drop)",
+        "⚠️ Ambiguous Signal (Low Confidence / Abstain Mode)",
+        "✅ Steady State Baseline (Healthy / No Anomalies)"
+    ]
+)
+
+role = st.sidebar.selectbox("Executive Persona View", ["Ops_Lead", "CMO", "Analyst"], index=0)
+
+if "Outage Incident" in scenario_preset:
+    window = 144
+elif "Ambiguous Signal" in scenario_preset:
+    window = 72
+else:
+    window = 24
+
+st.sidebar.caption(f"Active Analysis Window: **{window} Hours**")
+
+
+# ----------------- TAB 1: LIVE DIAGNOSTIC WORKSPACE -----------------
+if tab_selection == "Live Diagnostic Workspace":
+    st.title("🎯 Live Incident & Causal Attribution")
+    st.caption("Deterministic Causal Inference (NetworkX/Stats) + Contextual Semantic RAG + Prescriptive Action")
+    
+    col_btn, col_info = st.columns([1, 4])
+    with col_btn:
+        run_pulse = st.button("⚡ Run Diagnostic Pulse", type="primary", use_container_width=True)
+        
+    if run_pulse:
+        start_time = time.time()
+        with st.spinner("Analyzing telemetry signals, constructing DAG, and querying qualitative context..."):
+            try:
+                response = requests.post(f"{API_URL}/run-diagnostics", json={
+                    "role": role,
+                    "time_window_hours": window
+                })
+                elapsed_ms = round((time.time() - start_time) * 1000, 1)
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    st.session_state['last_diagnostic'] = data
+                    st.session_state['last_elapsed'] = elapsed_ms
+                else:
+                    st.error(f"Backend returned error: {response.text}")
+            except Exception as e:
+                st.error(f"Could not connect to FastAPI backend at {API_URL}. Ensure it is running.")
+                
+    if 'last_diagnostic' in st.session_state:
+        data = st.session_state['last_diagnostic']
+        elapsed = st.session_state.get('last_elapsed', 45.0)
+        
+        # Top banner stats
+        b1, b2, b3, b4, b5 = st.columns(5)
+        with b1:
+            st.markdown(f"<div class='metric-card'><span class='badge badge-info'>Persona</span><h3>{role}</h3></div>", unsafe_allow_html=True)
+        with b2:
+            st.markdown(f"<div class='metric-card'><span class='badge badge-warning'>Confidence Score</span><h3>{data['ambiguity_analysis']['confidence_score']} / 1.0</h3></div>", unsafe_allow_html=True)
+        with b3:
+            st.markdown(f"<div class='metric-card'><span class='badge badge-success'>Execution Latency</span><h3>{elapsed} ms</h3></div>", unsafe_allow_html=True)
+        with b4:
+            st.markdown(f"<div class='metric-card'><span class='badge badge-info'>Anomalies Detected</span><h3>{len(data['diagnostics']['anomalies'])} Nodes</h3></div>", unsafe_allow_html=True)
+        
+        # Telemetry Estimation (Tokens)
+        estimated_tokens = len(data.get("executive_summary", "")) // 4 + 650
+        cost_estimate = (estimated_tokens / 1000) * 0.0005 # Assuming Gemini Pro cost
+        with b5:
+            st.markdown(f"<div class='metric-card'><span class='badge badge-warning'>LLM Telemetry</span><h3>{estimated_tokens} tokens</h3><p style='margin:0; font-size:12px; color:#A0AEC0;'>Est. Cost: ${cost_estimate:.5f}</p></div>", unsafe_allow_html=True)
+            
+        st.markdown("<br>", unsafe_allow_html=True)
+        
+        # 1. Executive Summary
+        if not data["ambiguity_analysis"]["is_ambiguous"]:
+            st.markdown("<div class='summary-card'>", unsafe_allow_html=True)
+            st.subheader(f"📋 Executive Briefing ({role} Persona)")
+            st.write(data["executive_summary"])
+            st.markdown("</div>", unsafe_allow_html=True)
+        else:
+            st.markdown("<div class='ambiguity-card'>", unsafe_allow_html=True)
+            st.subheader("⚠️ Active Ambiguity Mode (Confidence < 0.65)")
+            st.write(data["ambiguity_analysis"]["reason"])
+            st.markdown("#### Guided Diagnostic Hypothesis Tree")
+            for hyp in data["ambiguity_analysis"]["hypothesis_tree"]:
+                st.write(f"- {hyp}")
+            st.markdown("#### Recommended Supplementary Queries")
+            for q in data["ambiguity_analysis"]["recommended_queries"]:
+                st.code(q, language="sql")
+            st.markdown("</div>", unsafe_allow_html=True)
+            
+        # Download Report Feature
+        report_content = f"# CausalPulse AI - Executive Diagnostic Report\n\n**Persona:** {role}\n**Confidence Score:** {data['ambiguity_analysis']['confidence_score']}\n\n## Executive Summary\n{data.get('executive_summary', 'Ambiguity mode active. Further queries required.')}\n\n## Root Causes Detected\n- " + "\n- ".join(data['diagnostics']['root_causes']) + "\n\n## System Anomalies\n- " + "\n- ".join(data['diagnostics']['anomalies'].keys())
+        st.download_button(
+            label="📥 Download Executive PDF / Markdown Report",
+            data=report_content,
+            file_name=f"CausalPulse_Report_{int(time.time())}.md",
+            mime="text/markdown",
+            use_container_width=True
+        )
+            
+        # 2. Financial Impact Breakdown
+        st.subheader("💰 Real-Time Financial Impact Quantification")
+        impacts = data["diagnostics"]["financial_impact"]
+        if impacts:
+            f_cols = st.columns(len(impacts))
+            for i, (metric, imp) in enumerate(impacts.items()):
+                with f_cols[i]:
+                    st.markdown(f"""
+                        <div class='metric-card'>
+                            <h5>{metric.replace('_', ' ').title()}</h5>
+                            <h3 style='color: #FC8181;'>-${imp['financial_impact_usd']:,.2f}</h3>
+                            <p style='color: #A0AEC0; font-size: 0.85em;'>{imp['description']}</p>
+                        </div>
+                    """, unsafe_allow_html=True)
+        else:
+            st.info("No direct financial drain computed on current metrics.")
+            
+        st.markdown("<br>", unsafe_allow_html=True)
+        
+        # 3. DAG Graph & Qualitative Evidence
+        col_dag, col_rag = st.columns([3, 2])
+        with col_dag:
+            contract = load_kpi_contract()
+            render_causal_graph(
+                data["diagnostics"]["root_causes"], 
+                data["diagnostics"]["anomalies"], 
+                contract
+            )
+        with col_rag:
+            st.subheader("🔍 Qualitative Log Evidence (RAG)")
+            st.caption("Masked PII Guardrails Applied (`[REDACTED_PII]`)")
+            for ctx in data["evidence"]["rag_context"]:
+                meta = ctx['metadata']
+                st.info(f"**{meta['source']} ({meta['type']}) | {meta['timestamp']}**\n\n{ctx['content']}")
+                
+        # 4. Action Levers & Counterfactual Simulator
+        st.divider()
+        st.subheader("⚙️ Prescriptive Decision & Counterfactual Simulator")
+        st.write("Evaluate mitigation strategies before taking action in production.")
+        
+        sim_col1, sim_col2 = st.columns([1, 2])
+        with sim_col1:
+            selected_lever = st.selectbox("Select Controllable Business Lever", ["reroute_traffic", "scale_db_replicas"])
+            sim_btn = st.button("🚀 Run Counterfactual Simulation", use_container_width=True)
+        with sim_col2:
+            if sim_btn:
+                try:
+                    sim_resp = requests.post(f"{API_URL}/simulate-lever", json={"lever_name": selected_lever})
+                    if sim_resp.status_code == 200:
+                        sim_out = sim_resp.json()
+                        st.success(f"Simulation Complete for lever: `{selected_lever}`")
+                        st.json(sim_out["simulation"])
+                except Exception as e:
+                    st.error(f"Simulation failed: {e}")
+
+# ----------------- TAB 2: SEMANTIC KPI CONTRACTS -----------------
+elif tab_selection == "Semantic KPI Contracts":
+    st.title("📜 Semantic KPI Governance Contracts")
+    st.caption("Deterministic definitions, thresholds, ownership, and upstream dependency lineage")
+    contract = load_kpi_contract()
+    
+    st.subheader("Governed KPI Matrix")
+    for kpi, details in contract.get('kpis', {}).items():
+        with st.expander(f"📌 {kpi.replace('_', ' ').title()} (Owner: {details.get('owner', 'N/A')})"):
+            c1, c2, c3 = st.columns(3)
+            with c1:
+                st.write(f"**Description:** {details.get('description')}")
+                st.write(f"**Type:** `{details.get('type')}`")
+            with c2:
+                st.write(f"**Aggregation:** `{details.get('aggregation')}`")
+                st.write(f"**Thresholds:** {details.get('thresholds')}")
+            with c3:
+                st.write(f"**Upstream Dependencies:** {details.get('upstream_dependencies')}")
+
+# ----------------- TAB 3: AUDIT TRAIL & TELEMETRY -----------------
+elif tab_selection == "Audit Trail & Telemetry":
+    st.title("📊 Compliance Audit Trail & Runtime Telemetry")
+    st.caption("Immutable state history, LLM token consumption, latency, and explainability records")
+    try:
+        audit_resp = requests.get(f"{API_URL}/audit-logs")
+        if audit_resp.status_code == 200:
+            logs = audit_resp.json()
+            st.write(f"**Total Pipeline Invocations Logged:** {len(logs)}")
+            for log in reversed(logs):
+                with st.expander(f"🕒 Invocation: {log.get('timestamp')} | Role: {log.get('role')} | Confidence: {log.get('confidence_score')}"):
+                    st.json(log)
+        else:
+            st.info("No audit logs recorded yet. Run a diagnostic pulse first.")
+    except Exception as e:
+        st.warning("Audit log service currently offline.")
+
+# ----------------- TAB 4: CONTINUOUS LEARNING LOOP -----------------
+elif tab_selection == "Continuous Learning Loop":
+    st.title("🔄 Human-In-The-Loop Feedback Engine")
+    st.caption("Capture analyst validation and overrides to continuously optimize DAG priors and causal weights")
+    
+    with st.form("feedback_form"):
+        incident_id = st.text_input("Incident / Run ID", "INC-2026-08-15-US-EAST")
+        suggested_root = st.text_input("Model Suggested Root Cause", "redis_hit_rate")
+        verdict = st.selectbox("Analyst Verdict", ["APPROVED", "REJECTED", "OVERRIDDEN"])
+        override_node = st.selectbox("Analyst Override Root Cause (if overridden)", ["None", "redis_hit_rate", "db_query_time_ms", "api_latency_ms", "checkout_success_rate"])
+        notes = st.text_area("Analyst Notes & Domain Context", "Verified with DevOps team. Redis node failover was indeed the root cause.")
+        
+        submitted = st.form_submit_button("Submit Analyst Feedback")
+        if submitted:
+            try:
+                fb_resp = requests.post(f"{API_URL}/feedback", json={
+                    "incident_id": incident_id,
+                    "suggested_root_cause": suggested_root,
+                    "user_verdict": verdict,
+                    "user_override_node": None if override_node == "None" else override_node,
+                    "comments": notes
+                })
+                if fb_resp.status_code == 200:
+                    st.success("Analyst feedback successfully recorded!")
+                    st.info("🧠 **Bayesian Prior Updated**: The causal graph engine has adjusted the edge weights for future inferences based on your override.")
+            except Exception as e:
+                st.error(f"Error recording feedback: {e}")

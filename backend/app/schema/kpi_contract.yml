@@ -1,0 +1,67 @@
+kpis:
+  hourly_revenue_usd:
+    description: "Total revenue generated per hour across successful checkouts"
+    owner: "VP of Sales"
+    type: "business"
+    aggregation: "sum"
+    thresholds:
+      warning_drop_pct: 5
+      critical_drop_pct: 15
+    upstream_dependencies:
+      - checkout_success_rate
+
+  checkout_success_rate:
+    description: "Percentage of checkout attempts that complete successfully"
+    owner: "Product Manager - Payments"
+    type: "product"
+    aggregation: "mean"
+    thresholds:
+      warning_drop_pct: 2
+      critical_drop_pct: 5
+    upstream_dependencies:
+      - api_latency_ms
+
+  api_latency_ms:
+    description: "Average latency of core API Gateway routes"
+    owner: "Engineering Lead"
+    type: "system"
+    aggregation: "mean"
+    thresholds:
+      warning_spike_pct: 20
+      critical_spike_pct: 50
+    upstream_dependencies:
+      - db_query_time_ms
+
+  db_query_time_ms:
+    description: "Average query execution time on primary PostgreSQL database"
+    owner: "DBA Team"
+    type: "system"
+    aggregation: "mean"
+    thresholds:
+      warning_spike_pct: 30
+      critical_spike_pct: 60
+    upstream_dependencies:
+      - redis_hit_rate
+
+  redis_hit_rate:
+    description: "Cache hit rate for session and product metadata"
+    owner: "DevOps Team"
+    type: "system"
+    aggregation: "mean"
+    thresholds:
+      warning_drop_pct: 5
+      critical_drop_pct: 10
+    upstream_dependencies: []
+
+levers:
+  reroute_traffic:
+    description: "Reroute API traffic to secondary gateway to bypass failing nodes"
+    impacts:
+      - api_latency_ms
+    expected_improvement_pct: 40
+
+  scale_db_replicas:
+    description: "Horizontally scale DB read replicas"
+    impacts:
+      - db_query_time_ms
+    expected_improvement_pct: 25
