@@ -53,9 +53,9 @@ class RAGSynthesizer:
                 print(f"Chroma upsert error, falling back to local search: {e}")
                 self.has_chroma = False
         
-    def search_context(self, root_cause_node: str, top_k: int = 3) -> list:
+    def search_context(self, root_cause_node: str, timestamp_context: str = None, top_k: int = 3) -> list:
         """
-        Retrieves logs semantically related to the identified root cause node.
+        Retrieves logs semantically related to the identified root cause node and time window.
         """
         query_map = {
             "redis_hit_rate": "Redis cache hit rate failure database load primary node failover",
@@ -66,6 +66,9 @@ class RAGSynthesizer:
         }
         
         query_text = query_map.get(root_cause_node, root_cause_node.replace("_", " "))
+        
+        if timestamp_context:
+            query_text = f"{query_text} {timestamp_context}"
         
         # If ChromaDB is available and has docs
         if self.has_chroma and self.collection:

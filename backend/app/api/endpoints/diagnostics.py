@@ -3,6 +3,7 @@ from pydantic import BaseModel
 from typing import Optional, List
 import pandas as pd
 import numpy as np
+import time
 from pathlib import Path
 
 from app.engines.anomaly_detector import anomaly_detector
@@ -11,6 +12,7 @@ from app.engines.rag_synthesizer import rag_synthesizer
 from app.engines.ambiguity_handler import ambiguity_handler
 from app.engines.financial_quantifier import financial_quantifier
 from app.engines.guardrails_rbac import guardrails
+from app.engines.attribution_engine import attribution_engine
 from app.core.gemini_client import gemini_client
 from app.core.audit_logger import audit_logger
 from app.core.feedback_processor import feedback_processor
@@ -39,8 +41,8 @@ def generate_telemetry_df(scenario: str, window_hours: int) -> pd.DataFrame:
     else:
         n = 100 + window_hours
         
-    end_time = pd.Timestamp.now().round("H")
-    dates = pd.date_range(end=end_time, periods=n, freq="H")
+    end_time = pd.Timestamp.now().round("h")
+    dates = pd.date_range(end=end_time, periods=n, freq="h")
     
     redis_hit_rate = np.random.normal(0.95, 0.02, n)
     db_query_time = np.random.normal(45, 5, n)
@@ -48,7 +50,7 @@ def generate_telemetry_df(scenario: str, window_hours: int) -> pd.DataFrame:
     checkout_success = np.random.normal(0.99, 0.005, n)
     revenue = np.random.normal(50000, 2000, n)
     
-    anomaly_len = max(2, window_hours // 2)
+    anomaly_len = min(12, max(2, window_hours // 4))
     anomaly_idx = slice(-anomaly_len, None)
     
     if "Outage Incident" in scenario:
@@ -60,11 +62,17 @@ def generate_telemetry_df(scenario: str, window_hours: int) -> pd.DataFrame:
     elif "Payment Gateway" in scenario:
         checkout_success[anomaly_idx] -= np.random.uniform(0.2, 0.4, anomaly_len)
         revenue[anomaly_idx] -= np.random.uniform(10000, 20000, anomaly_len)
-    elif "Flash Sale" in scenario:
+    elif "Flash Sale Traffic Surge" in scenario:
         db_query_time[anomaly_idx] += np.random.uniform(100, 200, anomaly_len)
         api_latency[anomaly_idx] += np.random.uniform(150, 300, anomaly_len)
         checkout_success[anomaly_idx] -= np.random.uniform(0.05, 0.15, anomaly_len)
         revenue[anomaly_idx] += np.random.uniform(30000, 50000, anomaly_len)
+    elif "Multi-Factor" in scenario:
+        # DB contention + third-party gateway fail
+        db_query_time[anomaly_idx] += np.random.uniform(100, 200, anomaly_len)
+        api_latency[anomaly_idx] += np.random.uniform(150, 300, anomaly_len)
+        checkout_success[anomaly_idx] -= np.random.uniform(0.3, 0.5, anomaly_len)
+        revenue[anomaly_idx] -= np.random.uniform(20000, 40000, anomaly_len)
     elif "Ambiguous Signal" in scenario:
         revenue[anomaly_idx] -= np.random.uniform(15000, 25000, anomaly_len)
     elif "New Product Launch" in scenario:
@@ -85,9 +93,14 @@ def generate_telemetry_df(scenario: str, window_hours: int) -> pd.DataFrame:
 
 @router.post("/run-diagnostics")
 async def run_diagnostics(req: DiagnosticRequest):
-    # 1. Ingest Structured Data & Detect Anomalies
-    df = generate_telemetry_df(req.scenario, req.time_window_hours)
+    start_time = time.time()
+    latency_breakdown = {}
+    
+    # 1. Anomaly Detection (Stats)
+    t0 = time.time()
+    df = generate_telemetry_df(req.scenario, window_hours=req.time_window_hours)
     anomalies = anomaly_detector.get_latest_anomalies(df, window_hours=req.time_window_hours)
+    latency_breakdown["Stats Engine"] = round((time.time() - t0) * 1000, 2)
     
     if not anomalies:
         return {
@@ -112,21 +125,40 @@ async def run_diagnostics(req: DiagnosticRequest):
         }
         
     # 2. Causal Attribution (Engine 1)
+    t0 = time.time()
     root_causes = causal_graph.trace_root_cause(anomalies)
+    latency_breakdown["DAG Traversal"] = round((time.time() - t0) * 1000, 2)
     
     # 3. Contextual Retrieval (Engine 2)
+    t0 = time.time()
     rag_context = []
     if root_causes:
         # Load logs if not loaded (for prototype convenience)
         rag_synthesizer.load_documents()
-        raw_context = rag_synthesizer.search_context(root_causes[0])
+        
+        # Build dynamic time context
+        anomaly_time = anomalies[root_causes[0]]['timestamp']
+        time_context = f"around {anomaly_time.strftime('%Y-%m-%d %H:%M')}"
+        
+        raw_context = rag_synthesizer.search_context(root_causes[0], timestamp_context=time_context)
         # Apply Guardrails (Redact PII)
         for ctx in raw_context:
             safe_text = guardrails.redact_pii(ctx['content'])
             rag_context.append({"content": safe_text, "metadata": ctx['metadata']})
             
+    latency_breakdown["RAG Search"] = round((time.time() - t0) * 1000, 2)
+            
+    # 3.5 Attribution Scoring (Multi-Factor Evidence)
+    attribution_scores = attribution_engine.score_root_causes(anomalies, root_causes, rag_context)
+    
     # 4. Check Ambiguity
-    ambiguity_result = ambiguity_handler.check_ambiguity(root_causes, rag_context, history_len=len(df))
+    ambiguity_result = ambiguity_handler.check_ambiguity(
+        root_causes, 
+        rag_context, 
+        attribution_scores=attribution_scores, 
+        history_len=len(df),
+        has_anomalies=bool(anomalies)
+    )
     
     # 5. Financial Quantification
     financial_impacts = {}
@@ -149,6 +181,34 @@ async def run_diagnostics(req: DiagnosticRequest):
             
             financial_impacts[metric] = impact
             
+    # 5.5 Materiality Assessment
+    total_financial_loss = sum(imp['financial_impact_usd'] for imp in financial_impacts.values())
+    if total_financial_loss > 1000000:
+        materiality = "HIGH"
+    elif total_financial_loss > 100000:
+        materiality = "MEDIUM"
+    else:
+        materiality = "LOW"
+        
+    materiality_assessment = {
+        "rating": materiality,
+        "total_financial_exposure_usd": total_financial_loss,
+        "affected_kpis": len(financial_impacts),
+        "duration_hours": max([data['timestamp'].hour for data in anomalies.values()] + [0]) # simplistic duration mock
+    }
+            
+    # 5.75 Temporal Waterfall
+    temporal_waterfall = []
+    if anomalies:
+        sorted_anomalies = sorted(anomalies.items(), key=lambda item: item[1]['timestamp'])
+        for metric, data in sorted_anomalies:
+            temporal_waterfall.append({
+                "metric": metric,
+                "timestamp": data['timestamp'].isoformat(),
+                "direction": data['direction'],
+                "z_score": data['z_score']
+            })
+            
     # 6. Narrative Generation (Executive Output Layer)
     role_prompt = guardrails.apply_role_context(req.role)
     
@@ -167,7 +227,9 @@ async def run_diagnostics(req: DiagnosticRequest):
     If ambiguity is high, state that hypothesis testing is needed.
     """
     
+    t0 = time.time()
     executive_summary = gemini_client.generate_narrative(prompt)
+    latency_breakdown["LLM Synthesis"] = round((time.time() - t0) * 1000, 2)
     
     # 7. Audit Logging
     audit_logger.log_invocation({
@@ -179,13 +241,18 @@ async def run_diagnostics(req: DiagnosticRequest):
     })
     
     # 8. Return Response
-    response = {
-        "status": "anomaly_detected",
+    return {
+        "status": "success",
+        "scenario_analyzed": req.scenario,
         "executive_summary": executive_summary,
+        "latency_waterfall": latency_breakdown,
         "diagnostics": {
             "root_causes": root_causes,
+            "attribution_scores": attribution_scores,
             "anomalies": anomalies,
-            "financial_impact": financial_impacts
+            "temporal_waterfall": temporal_waterfall,
+            "financial_impact": financial_impacts,
+            "materiality_assessment": materiality_assessment
         },
         "ambiguity_analysis": ambiguity_result,
         "evidence": {
@@ -193,7 +260,16 @@ async def run_diagnostics(req: DiagnosticRequest):
         }
     }
     
+    # 9. Optional Local Storage (if needed for debugging)
+    df.to_csv("latest_telemetry_snapshot.csv", index=False)
+    
     return response
+
+@router.get("/evaluate")
+def run_evaluation():
+    """Runs the 15-case synthetic benchmark."""
+    from app.benchmark_runner import run_benchmark
+    return run_benchmark()
 
 @router.post("/simulate-lever")
 async def simulate_lever(req: LeverSimulationRequest):

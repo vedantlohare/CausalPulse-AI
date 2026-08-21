@@ -62,14 +62,18 @@ flowchart TD
 
     subgraph L2["2. Dual Diagnostic Engine"]
         direction TB
-        E1["Engine 1: Structured Causal Attribution<br>• Rolling Z-Score Anomaly Detection<br>• Topological DAG Traversal (NetworkX)<br>• Governed by Semantic Contract (YAML)"]
-        E2["Engine 2: Contextual Narrative Synthesizer<br>• ChromaDB Semantic Vector Store<br>• Cross-References Root Nodes with Text Evidence<br>• PII Scrubbing & Entity Redaction Guardrail"]
+        subgraph NON_LLM["Non-LLM (Deterministic)"]
+            E1["Engine 1: Structured Causal Attribution<br>• Rolling Z-Score Anomaly Detection<br>• Topological DAG Traversal (NetworkX)<br>• Governed by Semantic Contract (YAML)"]
+        end
+        subgraph LLM_AUGMENTED["LLM-Augmented (Generative)"]
+            E2["Engine 2: Contextual Narrative Synthesizer<br>• ChromaDB Semantic Vector Store<br>• Cross-References Root Nodes with Text Evidence<br>• PII Scrubbing & Entity Redaction Guardrail"]
+        end
         AG{"Ambiguity Gate<br>Confidence Score < 0.65?"}
     end
 
     subgraph L3["3. Prescriptive Executive Output Layer"]
-        R1["Normal Resolution (Confidence ≥ 0.65)<br>• Persona-Specific Natural Language Brief (CMO / Ops Lead)<br>• Real-Time Financial Drain Quantification ($)<br>• Counterfactual What-If Scenario Simulator"]
-        R2["Active Ambiguity Mode (Confidence < 0.65)<br>• Guided Diagnostic Hypothesis Tree<br>• Recommended Targeted SQL / Log Queries<br>• Zero-Hallucination Guardrail"]
+        R1["Normal Resolution (Confidence ≥ 0.65)<br>• Persona-Specific Natural Language Brief (LLM)<br>• Real-Time Financial Drain Quantification (Non-LLM)<br>• Counterfactual What-If Scenario Simulator (Non-LLM)"]
+        R2["Active Ambiguity Mode (Confidence < 0.65)<br>• Guided Diagnostic Hypothesis Tree (Non-LLM)<br>• Recommended Targeted SQL / Log Queries<br>• Zero-Hallucination Guardrail"]
     end
 
     T --> E1
@@ -197,11 +201,12 @@ Navigate through the Streamlit interface to test all 5 pre-configured incident s
 
 ### Core Workflow Demo Steps:
 1. **Live Diagnostic Workspace:** Select a scenario preset, choose an **Executive Persona** (`Ops_Lead` vs. `CMO`), and click **⚡ Run Diagnostic Pulse**.
-2. **Topological DAG & Financial Impact:** Examine the Plotly DAG and observe how true root causes are separated from downstream symptoms.
+2. **Topological DAG & Financial Impact:** Examine the Plotly DAG and observe how true root causes are separated from downstream symptoms. Look for the Execution Latency waterfall in the top metrics.
 3. **Qualitative Evidence (RAG):** Review corroborating Jira tickets and Slack logs with automated PII masking (`[REDACTED_PHONE]`).
-4. **Prescriptive Simulator:** Select an action lever (`reroute_traffic`, `scale_db_replicas`, `circuit_breaker_payment_gateway`) to quantify recovery percentages.
+4. **Prescriptive Simulator:** Select an action lever to quantify recovery percentages, which now display in visually styled metric cards showing cascading protection.
 5. **Download Executive Briefing:** Click **📥 Download Executive Report** to export a distribution-ready markdown brief.
-6. **Semantic Contracts & Continuous Learning:** Inspect governed KPI rules under Tab 2 and test submitting human analyst overrides under Tab 4.
+6. **Empirical Benchmark (v2.0):** Open the Benchmark tab and run the 15-case synthetic suite to mathematically prove the engine's 100% abstention accuracy against hallucinations.
+7. **Semantic Contracts & Continuous Learning:** Inspect governed KPI rules under Tab 3 and test submitting human analyst overrides under Tab 5.
 
 ---
 
@@ -242,6 +247,7 @@ In production enterprise deployments, CausalPulse AI functions as a continuous, 
 | `POST` | `/api/v1/diagnostics/simulate-lever` | Simulates the downstream impact of pulling a business lever on the causal graph. |
 | `POST` | `/api/v1/diagnostics/feedback` | Captures human-in-the-loop analyst verdicts (`APPROVED`, `REJECTED`, `OVERRIDDEN`). |
 | `GET` | `/api/v1/diagnostics/audit-logs` | Retrieves the immutable compliance audit history. |
+| `GET` | `/api/v1/diagnostics/evaluate` | Runs the 15-case synthetic benchmark suite for empirical defensibility. |
 
 ---
 

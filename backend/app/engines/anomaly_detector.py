@@ -15,9 +15,9 @@ class AnomalyDetector:
         df['timestamp'] = pd.to_datetime(df['timestamp'])
         df = df.sort_values(by="timestamp")
         
-        # Calculate rolling mean and std
-        rolling_mean = df[metric_col].rolling(window=24, min_periods=1).mean()
-        rolling_std = df[metric_col].rolling(window=24, min_periods=1).std().replace(0, 1e-9)
+        # Calculate rolling mean and std from historical baseline
+        rolling_mean = df[metric_col].rolling(window=48, min_periods=4).mean().shift(1).bfill()
+        rolling_std = df[metric_col].rolling(window=48, min_periods=4).std().shift(1).bfill().replace(0, 1e-9)
         
         # Calculate Z-score
         z_scores = (df[metric_col] - rolling_mean) / rolling_std
@@ -38,15 +38,14 @@ class AnomalyDetector:
         # Get data from the last window_hours
         latest_time = df['timestamp'].max()
         cutoff_time = latest_time - pd.Timedelta(hours=window_hours)
-        recent_df = df[df['timestamp'] >= cutoff_time]
-
         
         numeric_cols = [c for c in df.columns if df[c].dtype in [np.float64, np.int64]]
         anomalies = {}
         
         for col in numeric_cols:
-            annotated_df = self.detect_anomalies(recent_df, col)
-            anomaly_rows = annotated_df[annotated_df['is_anomaly']]
+            annotated_df = self.detect_anomalies(df, col)
+            recent_annotated = annotated_df[annotated_df['timestamp'] >= cutoff_time]
+            anomaly_rows = recent_annotated[recent_annotated['is_anomaly']]
             if not anomaly_rows.empty:
                 # Find the maximum deviation
                 max_row = anomaly_rows.loc[anomaly_rows['z_score'].abs().idxmax()]
