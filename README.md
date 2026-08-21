@@ -12,10 +12,6 @@
 
 ---
 
-> 📘 **Exhaustive Documentation:** Looking for the in-depth architectural manual, mathematical explanations, customization guides, and Q&A defenses? Read the [**CausalPulse AI Project Bible**](./PROJECT_BIBLE.md).
-
----
-
 ## 📑 Table of Contents
 1. [Executive Summary](#-executive-summary)
 2. [The Core Problem in Enterprise BI](#-the-core-problem-in-enterprise-bi)
@@ -139,7 +135,6 @@ causalpulse-ai/
 │   └── requirements.txt                # Backend & Frontend dependency specification
 ├── frontend/
 │   └── app.py                          # Streamlit interactive executive dashboard & DAG visualizer
-├── PROJECT_BIBLE.md                    # Master technical guide and presentation handbook
 └── README.md                           # This file
 ```
 
@@ -152,8 +147,9 @@ causalpulse-ai/
 * Windows PowerShell, macOS Terminal, or Linux Bash
 
 ### 2. Clone & Enter Directory
-```powershell
-cd C:\STUDY\PROJECTS\Accenture_CausalPulseAI\causalpulse-ai
+```bash
+git clone https://github.com/vedantlohare/CausalPulse-AI.git
+cd CausalPulse-AI
 ```
 
 ### 3. Install Dependencies
