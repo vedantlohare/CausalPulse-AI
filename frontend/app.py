@@ -189,7 +189,8 @@ if tab_selection == "Live Diagnostic Workspace":
             try:
                 response = requests.post(f"{API_URL}/run-diagnostics", json={
                     "role": role,
-                    "time_window_hours": window
+                    "time_window_hours": window,
+                    "scenario": scenario_preset
                 })
                 elapsed_ms = round((time.time() - start_time) * 1000, 1)
                 

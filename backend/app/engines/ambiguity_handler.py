@@ -17,16 +17,20 @@ class AmbiguityHandler:
             }
             
         # Mock confidence calculation
-        # If we have exactly 1 root cause and at least 1 log backing it up, confidence is high.
-        score = 0.5
-        
-        if len(root_causes) == 1:
-            score += 0.3
-        elif len(root_causes) > 1:
-            score -= 0.2
+        # If the ONLY root cause is a business metric (like revenue) and no IT systems failed,
+        # it is highly ambiguous (could be marketing, competitors, external factors).
+        if root_causes == ["hourly_revenue_usd"]:
+            score = 0.3
+        else:
+            score = 0.5
             
-        if len(rag_context) > 0:
-            score += 0.1 * min(len(rag_context), 3) # Up to +0.3 for context
+            if len(root_causes) == 1:
+                score += 0.3
+            elif len(root_causes) > 1:
+                score -= 0.2
+                
+            if len(rag_context) > 0:
+                score += 0.1 * min(len(rag_context), 3) # Up to +0.3 for context
             
         score = min(max(score, 0.0), 1.0) # Clamp between 0 and 1
         

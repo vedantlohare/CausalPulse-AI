@@ -2,6 +2,7 @@ from fastapi import APIRouter, Query, HTTPException
 from pydantic import BaseModel
 from typing import Optional, List
 import pandas as pd
+import numpy as np
 from pathlib import Path
 
 from app.engines.anomaly_detector import anomaly_detector
@@ -27,29 +28,58 @@ class FeedbackRequest(BaseModel):
 class DiagnosticRequest(BaseModel):
     role: str = "analyst"
     time_window_hours: int = 24
+    scenario: str = "Steady State Baseline"
     
 class LeverSimulationRequest(BaseModel):
     lever_name: str
 
-def get_telemetry_df():
-    base_dir = Path(__file__).resolve().parent.parent.parent.parent
-    candidate_paths = [
-        base_dir / "mock_data" / "enterprise_telemetry.csv",
-        base_dir / "backend" / "mock_data" / "enterprise_telemetry.csv",
-        Path("./mock_data/enterprise_telemetry.csv"),
-        Path("./backend/mock_data/enterprise_telemetry.csv"),
-        Path("./enterprise_telemetry.csv")
-    ]
-    for p in candidate_paths:
-        if p.exists():
-            return pd.read_csv(p)
-    raise HTTPException(status_code=404, detail="Telemetry data not found")
+def generate_telemetry_df(scenario: str, window_hours: int) -> pd.DataFrame:
+    n = 100 + window_hours
+    end_time = pd.Timestamp.now().round("H")
+    dates = pd.date_range(end=end_time, periods=n, freq="H")
+    
+    redis_hit_rate = np.random.normal(0.95, 0.02, n)
+    db_query_time = np.random.normal(45, 5, n)
+    api_latency = db_query_time + np.random.normal(20, 2, n)
+    checkout_success = np.random.normal(0.99, 0.005, n)
+    revenue = np.random.normal(50000, 2000, n)
+    
+    anomaly_len = max(2, window_hours // 2)
+    anomaly_idx = slice(-anomaly_len, None)
+    
+    if "Outage Incident" in scenario:
+        redis_hit_rate[anomaly_idx] -= np.random.uniform(0.3, 0.5, anomaly_len)
+        db_query_time[anomaly_idx] += np.random.uniform(200, 400, anomaly_len)
+        api_latency[anomaly_idx] += np.random.uniform(250, 500, anomaly_len)
+        checkout_success[anomaly_idx] -= np.random.uniform(0.15, 0.30, anomaly_len)
+        revenue[anomaly_idx] -= np.random.uniform(15000, 25000, anomaly_len)
+    elif "Payment Gateway" in scenario:
+        checkout_success[anomaly_idx] -= np.random.uniform(0.2, 0.4, anomaly_len)
+        revenue[anomaly_idx] -= np.random.uniform(10000, 20000, anomaly_len)
+    elif "Flash Sale" in scenario:
+        db_query_time[anomaly_idx] += np.random.uniform(100, 200, anomaly_len)
+        api_latency[anomaly_idx] += np.random.uniform(150, 300, anomaly_len)
+        checkout_success[anomaly_idx] -= np.random.uniform(0.05, 0.15, anomaly_len)
+        revenue[anomaly_idx] += np.random.uniform(30000, 50000, anomaly_len)
+    elif "Ambiguous Signal" in scenario:
+        revenue[anomaly_idx] -= np.random.uniform(15000, 25000, anomaly_len)
+
+    df = pd.DataFrame({
+        "timestamp": dates,
+        "region": ["US-East"] * n,
+        "redis_hit_rate": np.clip(redis_hit_rate, 0, 1),
+        "db_query_time_ms": db_query_time,
+        "api_latency_ms": api_latency,
+        "checkout_success_rate": np.clip(checkout_success, 0, 1),
+        "hourly_revenue_usd": revenue
+    })
+    return df
 
 
 @router.post("/run-diagnostics")
 async def run_diagnostics(req: DiagnosticRequest):
     # 1. Ingest Structured Data & Detect Anomalies
-    df = get_telemetry_df()
+    df = generate_telemetry_df(req.scenario, req.time_window_hours)
     anomalies = anomaly_detector.get_latest_anomalies(df, window_hours=req.time_window_hours)
     
     if not anomalies:
