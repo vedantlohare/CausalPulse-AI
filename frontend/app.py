@@ -151,6 +151,8 @@ scenario_preset = st.sidebar.selectbox(
     "Select Incident Scenario",
     [
         "🔥 Outage Incident (Redis Failover -> DB Spike -> Revenue Drop)",
+        "💳 Payment Gateway Degradation (Third-Party Webhook Latency -> Churn Risk)",
+        "⚡ Flash Sale Traffic Surge (5x API Load -> DB Contention)",
         "⚠️ Ambiguous Signal (Low Confidence / Abstain Mode)",
         "✅ Steady State Baseline (Healthy / No Anomalies)"
     ]
@@ -160,6 +162,10 @@ role = st.sidebar.selectbox("Executive Persona View", ["Ops_Lead", "CMO", "Analy
 
 if "Outage Incident" in scenario_preset:
     window = 144
+elif "Payment Gateway" in scenario_preset:
+    window = 96
+elif "Flash Sale" in scenario_preset:
+    window = 48
 elif "Ambiguous Signal" in scenario_preset:
     window = 72
 else:
@@ -289,7 +295,8 @@ if tab_selection == "Live Diagnostic Workspace":
         
         sim_col1, sim_col2 = st.columns([1, 2])
         with sim_col1:
-            selected_lever = st.selectbox("Select Controllable Business Lever", ["reroute_traffic", "scale_db_replicas"])
+            contract_levers = list(load_kpi_contract().get("levers", {}).keys()) or ["reroute_traffic", "scale_db_replicas", "circuit_breaker_payment_gateway"]
+            selected_lever = st.selectbox("Select Controllable Business Lever", contract_levers)
             sim_btn = st.button("🚀 Run Counterfactual Simulation", use_container_width=True)
         with sim_col2:
             if sim_btn:

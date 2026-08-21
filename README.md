@@ -84,23 +84,30 @@ flowchart TD
 
 ## 🌟 Key Architectural Innovations
 
-### 1. Semantic KPI Contracts (`kpi_contract.yml`)
-Rather than allowing an LLM to guess business metric definitions, CausalPulse enforces a machine-readable governance contract specifying metric aggregation types, critical thresholds, ownership, and upstream dependency lineage.
+### 1. Mathematical Anomaly Detection & Baseline Filtering
+To separate genuine anomalies from standard diurnal noise, CausalPulse computes a rolling window mean ($\mu_t$) and standard deviation ($\sigma_t$) across metric telemetry:
+$$Z_t = \frac{x_t - \mu_t}{\sigma_t}$$
+* Metrics exceeding $|Z_t| > \theta_{\text{threshold}}$ (default $\theta = 3.0$) are flagged as active anomalous nodes $\mathcal{A}$.
 
-### 2. Deterministic Causality via NetworkX DAGs
-CausalPulse isolates the root-cause node mathematically by traversing the Directed Acyclic Graph. If nodes $A \rightarrow B \rightarrow C$ are all firing as anomalous, the engine traces back to $A$ (the origin) as the root cause.
+### 2. Topological Causal Graph Inference (NetworkX DAGs)
+The enterprise KPI dependency structure is modeled as a **Directed Acyclic Graph (DAG)** $\mathcal{G} = (\mathcal{V}, \mathcal{E})$.
+* **Topological Root-Cause Isolation Algorithm:** A firing node $n \in \mathcal{A}$ is isolated as a true Root Cause if and only if none of its in-graph predecessors are in the active anomaly set:
+$$\text{RootCauses} = \{n \in \mathcal{A} \mid \text{Pred}(n) \cap \mathcal{A} = \emptyset\}$$
+* This mathematically guarantees that downstream symptoms (e.g., Revenue Drop) are ignored in favor of the upstream failure node (e.g., Redis Cache failure).
 
 ### 3. Qualitative Cross-Referencing RAG (ChromaDB)
 When Engine 1 flags a technical failure (e.g., `redis_hit_rate`), Engine 2 retrieves exact timestamped evidence from internal Jira outage reports and Slack alerts to corroborate the finding with ground truth.
 
 ### 4. Active Ambiguity Handling (Zero-Hallucination Abstention)
-If evidence is insufficient, contradictory, or lacks historical priors, CausalPulse abstains from guessing. It calculates a confidence score and outputs a **Guided Diagnostic Hypothesis Tree** with targeted SQL queries for human analysts.
+If evidence is insufficient, contradictory, or lacks historical priors ($\text{Confidence} < 0.65$), CausalPulse abstains from guessing. It calculates a confidence score and outputs a **Guided Diagnostic Hypothesis Tree** with targeted SQL queries for human analysts.
 
 ### 5. Prescriptive "What-If" Counterfactual Simulator
-Executives can simulate the downstream impact of pulling controllable business levers (e.g., *"What if we reroute 40% of traffic to secondary gateway?"*) to evaluate revenue recovery before deploying changes.
+Executives can simulate the downstream impact of pulling controllable business levers (`reroute_traffic`, `scale_db_replicas`, `circuit_breaker_payment_gateway`) to evaluate revenue recovery before deploying changes.
 
-### 6. PII Scrubbing Guardrails (`guardrails_rbac.py`)
-All unstructured support tickets and chat logs are scrubbed for credit cards, phone numbers, and emails (`[REDACTED_PII]`) before prompting the LLM.
+### 6. Enterprise Governance, Telemetry & Cost Control
+* **PII Scrubbing Guardrails (`guardrails_rbac.py`):** Automatically sanitizes credit cards, phone numbers, and emails (`[REDACTED_PII]`) before prompting.
+* **LLM Unit Economics:** Tracks estimated token consumption and cost per diagnostic pulse directly on the UI banner.
+* **Human-in-the-Loop Feedback Loop:** Analyst overrides update the DAG's Bayesian priors over time.
 
 ---
 
@@ -153,19 +160,19 @@ cd CausalPulse-AI
 ```
 
 ### 3. Install Dependencies
-```powershell
+```bash
 python -m pip install -r requirements.txt
 ```
 
 ### 4. Start Backend Server (Terminal 1)
-```powershell
-python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
+```bash
+python -m uvicorn app.main:app --app-dir backend --host 127.0.0.1 --port 8000 --reload
 ```
 * **API URL:** `http://127.0.0.1:8000`
-* **Swagger Documentation:** `http://127.0.0.1:8000/docs`
+* **Interactive Swagger Documentation:** `http://127.0.0.1:8000/docs`
 
 ### 5. Start Frontend Dashboard (Terminal 2)
-```powershell
+```bash
 python -m streamlit run frontend/app.py
 ```
 * **Dashboard URL:** `http://localhost:8501`
@@ -174,22 +181,51 @@ python -m streamlit run frontend/app.py
 
 ## 🖥 How to Demo CausalPulse AI
 
-When presenting to judges or testing locally, navigate through the Streamlit interface:
+Navigate through the Streamlit interface to test all 5 pre-configured incident scenarios:
 
-1. **Live Diagnostic Workspace:**
-   - Select the **"🔥 Outage Incident"** preset from the sidebar.
-   - Select **Executive Persona View:** `Ops_Lead` or `CMO`.
-   - Click **⚡ Run Diagnostic Pulse**.
-   - Observe the **Topological Causal DAG**: Note how `redis_hit_rate` (Red) is isolated as the single root cause, while `api_latency_ms` and `checkout_success_rate` (Orange) are identified as downstream symptoms.
-   - Review the **Financial Impact** card (-$3.98M estimated drain).
-   - Review the **Qualitative Evidence (RAG)**: See internal Slack PagerDuty alerts with masked PII (`[REDACTED_PHONE]`).
-   - Run the **Counterfactual Simulator**: Select `reroute_traffic` to see expected recovery percentages.
-2. **Semantic KPI Contracts Tab:**
-   - Inspect governed KPI rules, aggregation types, and upstream dependencies.
-3. **Compliance Audit Trail & Telemetry Tab:**
-   - View immutable JSON audit history of execution latency, DAG edges, and confidence scores.
-4. **Continuous Learning Loop Tab:**
-   - Submit analyst overrides or approvals to continuously optimize graph priors.
+| Incident Scenario | Scenario Characteristics & System Behavior |
+| :--- | :--- |
+| **🔥 Outage Incident** | Redis failover fails $\rightarrow$ DB query times spike $\rightarrow$ Checkout drops. The engine isolates `redis_hit_rate` in Red, calculates -$3.98M loss, pulls Slack PagerDuty alerts, and allows traffic reroute simulation. |
+| **💳 Payment Gateway Degradation** | Third-party payment provider webhook timeouts cause cart completion drops. Engine isolates payment gateway failure, calculates checkout loss, and suggests engaging circuit breaker levers. |
+| **⚡ Flash Sale Traffic Surge** | APAC marketing broadcast drives 5x surge on API gateway $\rightarrow$ DB connection pool exhaustion. Engine differentiates surge traffic from systemic bugs and suggests DB replica scaling. |
+| **⚠️ Ambiguous Signal** | Partial metric anomaly with conflicting or missing qualitative logs. Confidence score drops below 0.65 $\rightarrow$ Engine enters Active Ambiguity Mode and presents a Guided Hypothesis Tree + SQL queries. |
+| **✅ Steady State Baseline** | Standard operational telemetry with normal diurnal cycles. All Z-scores remain within $|Z| \le 3.0$ $\rightarrow$ System reports healthy status with zero false-alarm fatigue. |
+
+### Core Workflow Demo Steps:
+1. **Live Diagnostic Workspace:** Select a scenario preset, choose an **Executive Persona** (`Ops_Lead` vs. `CMO`), and click **⚡ Run Diagnostic Pulse**.
+2. **Topological DAG & Financial Impact:** Examine the Plotly DAG and observe how true root causes are separated from downstream symptoms.
+3. **Qualitative Evidence (RAG):** Review corroborating Jira tickets and Slack logs with automated PII masking (`[REDACTED_PHONE]`).
+4. **Prescriptive Simulator:** Select an action lever (`reroute_traffic`, `scale_db_replicas`, `circuit_breaker_payment_gateway`) to quantify recovery percentages.
+5. **Download Executive Briefing:** Click **📥 Download Executive Report** to export a distribution-ready markdown brief.
+6. **Semantic Contracts & Continuous Learning:** Inspect governed KPI rules under Tab 2 and test submitting human analyst overrides under Tab 4.
+
+---
+
+## 🌐 Real-World Production Architecture (Scaling Beyond Demos)
+
+In production enterprise deployments, CausalPulse AI functions as a continuous, streaming intelligence pipeline:
+
+```
+┌────────────────────────────────────────────────────────────────────────┐
+│                   REAL-WORLD ENTERPRISE DATA PIPELINE                   │
+└────────────────────────────────────────────────────────────────────────┘
+   │
+   ├──► 1. Continuous Streaming Telemetry (Kafka / Snowflake / Databricks)
+   │    Sliding-window Z-scores / Seasonal-Trend decomposition (STL) run
+   │    on 10,000+ live metrics every 60 seconds.
+   │
+   ├──► 2. Dynamic Causal Graph Discovery (LiNGAM / NOTEARS / Structural Eq)
+   │    Dynamically infers new causal edges directly from observational telemetry.
+   │
+   ├──► 3. Multi-Root Cascading Incident Isolation
+   │    Isolates multiple independent failure origins simultaneously.
+   │
+   ├──► 4. Vector Log Streaming (ChromaDB / Pinecone / Elasticsearch)
+   │    Live connectors ingest Slack war-rooms, Datadog alerts, and Zendesk tickets.
+   │
+   └──► 5. Self-Learning Priors (HITL Feedback)
+        Analyst overrides continuously fine-tune graph edge weights and Bayesian priors.
+```
 
 ---
 
@@ -216,3 +252,4 @@ When presenting to judges or testing locally, navigate through the Streamlit int
 ---
 
 *Developed by **Team StarkProtocol** for the **Accenture Innovation Challenge 2026**.*
+

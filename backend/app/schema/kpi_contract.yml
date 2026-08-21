@@ -61,7 +61,13 @@ levers:
     expected_improvement_pct: 40
 
   scale_db_replicas:
-    description: "Horizontally scale DB read replicas"
+    description: "Horizontally scale DB read replicas to alleviate query contention"
     impacts:
       - db_query_time_ms
     expected_improvement_pct: 25
+
+  circuit_breaker_payment_gateway:
+    description: "Engage automatic fallback payment gateway provider to prevent checkout drops"
+    impacts:
+      - checkout_success_rate
+    expected_improvement_pct: 35

@@ -28,5 +28,29 @@
         "source": "Slack",
         "type": "DevOps Resolve",
         "content": "Redis nodes manually restarted and re-synced. Cache hit rate is recovering. DB load stabilizing."
+    },
+    {
+        "timestamp": "2026-08-18T14:20:00Z",
+        "source": "Jira",
+        "type": "Third-Party Incident",
+        "content": "[CRITICAL] Stripe/Adyen webhook timeout rates elevated above 40%. Direct impact on credit card checkout completions."
+    },
+    {
+        "timestamp": "2026-08-18T14:45:00Z",
+        "source": "Slack",
+        "type": "Payments War-Room",
+        "content": "@channel Payments Gateway API latency exceeded 4500ms in EU-West and US-Central. Circuit breaker engagement recommended."
+    },
+    {
+        "timestamp": "2026-08-20T08:00:00Z",
+        "source": "Slack",
+        "type": "Growth Team Announcement",
+        "content": "Flash Sale notification broadcasted to 4.5M mobile app users across APAC. Expecting 5x spike on API gateway."
+    },
+    {
+        "timestamp": "2026-08-20T08:15:00Z",
+        "source": "Zendesk",
+        "type": "Customer Support",
+        "content": "Customer complaints spiking in APAC regarding cart loading delay. Contact customer lead at support-escalations@enterprise.com."
     }
 ]
