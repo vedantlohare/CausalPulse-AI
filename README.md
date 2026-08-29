@@ -320,6 +320,15 @@ In production enterprise deployments, CausalPulse AI functions as a continuous, 
 **Q: Why does CausalPulse AI enter "Active Ambiguity Mode"?**  
 **A:** When telemetry is missing or qualitative evidence is contradictory, the engine calculates a composite confidence score. If $\text{Score} < 0.65$, CausalPulse deliberately abstains from guessing root causes to prevent costly hallucinations. Instead, it generates a Guided Diagnostic Hypothesis Tree with targeted SQL queries for human analysts.
 
+**Q: How do I configure my Gemini API key for production?**  
+**A:** You can set the API key via a `.env` file in the root directory (`GEMINI_API_KEY="AIzaSy..."`) or export it directly in your terminal. If the key is omitted or left as `DUMMY_KEY_FOR_MOCK`, the application seamlessly falls back to an offline deterministic synthesizer.
+
+**Q: I get a `ModelNotFound` error when using a real API key. How do I fix this?**  
+**A:** The prototype calls `gemini-3.1-pro` by default. Depending on your Google Cloud project's access tier or regional rollout (as of mid-2026), you might need to use the preview endpoint. Simply edit `backend/app/core/gemini_client.py` and change the model string to `gemini-3.1-pro-preview`.
+
+**Q: How is the LLM cost estimated in the audit telemetry?**  
+**A:** The prototype calculates exact token counts per execution using the official Gemini 3.1 Pro standard-tier pricing: `$2.00` per 1M prompt tokens and `$12.00` per 1M completion tokens. Typical diagnostic pulses cost approximately `$0.00315` USD, proving that generative telemetry triage is economically viable at scale.
+
 **Q: Do I need a paid Google Gemini API key to run and evaluate the prototype?**  
 **A:** No. CausalPulse AI includes an intelligent deterministic fallback synthesizer (`gemini_client.py`). If no API key is supplied, the system automatically uses deterministic rule templates to generate complete, structured executive briefings, DAG proofs, and counterfactual simulations offline.
 
