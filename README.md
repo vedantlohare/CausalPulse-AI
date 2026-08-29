@@ -108,11 +108,15 @@ If evidence is insufficient, contradictory, or lacks historical priors ($\text{C
 ### 5. Prescriptive "What-If" Counterfactual Simulator
 Executives can simulate the downstream impact of pulling controllable business levers (`reroute_traffic`, `scale_db_replicas`, `circuit_breaker_payment_gateway`) to evaluate revenue recovery before deploying changes.
 
-### 6. Enterprise Governance, Telemetry & Cost Control
+---
+
+## 🛡️ Enterprise Governance, Security & Guardrails
+
 * **PII Scrubbing Guardrails (`guardrails_rbac.py`):** Automatically sanitizes credit cards, phone numbers, and emails (`[REDACTED_PII]`) before prompting.
-* **LLM Unit Economics:** Tracks estimated token consumption and cost per diagnostic pulse directly on the UI banner.
-* **Human-in-the-Loop Feedback Loop:** Analyst overrides continuously fine-tune graph edge weights and statistical priors.
-* **Prescriptive Counterfactual Simulator:** Simulates the recovery percentage of a lever (e.g., `reroute_traffic`) before it is engaged.
+* **Role-Based Access Control (RBAC):** Literal, enforced redaction of raw metric values at the API layer based on the querying persona's clearance, logged for compliance.
+* **LLM Unit Economics:** Tracks real token consumption and estimated cost per diagnostic pulse directly on the UI banner.
+* **Offline Feedback Capture:** Analyst overrides are stored in immutable logs for offline model retraining and batch evaluation.
+* **Audit Logging:** Every invocation, data access redaction, and action lever simulation is appended to a structured audit history JSON.
 
 ### 🧠 The Core Architecture Tradeoff: Deterministic vs. Generative
 A key design decision in CausalPulse AI is **not relying on an LLM for quantitative truth or root-cause guessing**. Instead, we built a **Deterministic Frequentist (Z-Score)** core combined with **DAG Topological Traversal**. We deliberately chose this over formal black-box Causal Discovery (e.g., NOTEARS/LiNGAM) for **speed and absolute auditability**. The LLM is strictly confined to the synthesis layer—reading deterministic proofs and semantic RAG context to generate persona-aware narratives. This mathematically eliminates hallucination in root-cause isolation.
@@ -144,7 +148,6 @@ causalpulse-ai/
 │   │   │   └── kpi_contract.yml        # Governed semantic contract defining KPI definitions & lineage
 │   │   └── main.py                     # FastAPI application entrypoint
 │   ├── mock_data/
-│   │   ├── enterprise_telemetry.csv    # 30-day hourly synthetic metric dataset with injected incident
 │   │   ├── operational_logs.json       # Zendesk customer complaints, Jira bugs, Slack alerts
 │   │   └── generate_mock_data.py       # Python generator for repeatable test data
 │   └── requirements.txt                # Backend & Frontend dependency specification

@@ -9,6 +9,7 @@ kpis:
     type: "business"
     aggregation: "sum"
     aggregation_cadence: "1h"
+    access_roles: ["Ops_Lead", "CMO", "Analyst"]
     thresholds:
       warning_drop_pct: 5
       critical_drop_pct: 15
@@ -21,17 +22,20 @@ kpis:
     type: "product"
     aggregation: "mean"
     aggregation_cadence: "1h"
+    access_roles: ["Ops_Lead", "CMO", "Analyst"]
     thresholds:
       warning_drop_pct: 2
       critical_drop_pct: 5
     upstream_dependencies:
       - api_latency_ms
+      - payment_gateway_latency_ms
 
   api_latency_ms:
     description: "Average latency of core API Gateway routes"
     owner: "Engineering Lead"
     type: "system"
     aggregation: "mean"
+    access_roles: ["Ops_Lead", "Analyst"]
     thresholds:
       warning_spike_pct: 20
       critical_spike_pct: 50
@@ -43,6 +47,7 @@ kpis:
     owner: "DBA Team"
     type: "system"
     aggregation: "mean"
+    access_roles: ["Ops_Lead", "Analyst"]
     thresholds:
       warning_spike_pct: 30
       critical_spike_pct: 60
@@ -54,9 +59,21 @@ kpis:
     owner: "DevOps Team"
     type: "system"
     aggregation: "mean"
+    access_roles: ["Ops_Lead", "Analyst"]
     thresholds:
       warning_drop_pct: 5
       critical_drop_pct: 10
+    upstream_dependencies: []
+
+  payment_gateway_latency_ms:
+    description: "Latency of third-party payment gateway processing"
+    owner: "Third Party"
+    type: "system"
+    aggregation: "mean"
+    access_roles: ["Ops_Lead", "Analyst"]
+    thresholds:
+      warning_spike_pct: 20
+      critical_spike_pct: 50
     upstream_dependencies: []
 
 levers:
