@@ -9,8 +9,8 @@ class FeedbackProcessor:
         
     def record_feedback(self, incident_id: str, suggested_root_cause: str, user_verdict: str, user_override_node: str = None, comments: str = "") -> dict:
         """
-        Captures analyst validation or overrides to adjust causal graph edge weights
-        and fine-tune diagnostic priors over time.
+        Captures analyst validation or overrides for offline model retraining
+        and audit review.
         """
         feedback_entry = {
             "timestamp": datetime.utcnow().isoformat(),
@@ -33,6 +33,6 @@ class FeedbackProcessor:
         with open(self.storage_path, "w") as f:
             json.dump(existing, f, indent=2)
             
-        return {"status": "success", "message": "Analyst feedback captured and logged for DAG continuous optimization.", "entry": feedback_entry}
+        return {"status": "success", "message": "Analyst feedback captured for offline model retraining and audit review.", "entry": feedback_entry}
 
 feedback_processor = FeedbackProcessor()
