@@ -281,8 +281,10 @@ A key design decision in CausalPulse AI is **not relying on an LLM for quantitat
 | :--- | :--- | :--- |
 | **Mean Time to Identify (MTTI)** | 72 to 120 Hours (3–5 Business Days) | **< 30 Seconds** |
 | **Analyst Labor per Incident** | 4 Analysts × 24 Hours = 96 Hours (~$14,400) | **0.1 Hours (~$15)** |
-| **Annual Revenue Saved (Avg Enterprise)** | High Leakage (Delayed mitigation) | **$3.8M+ in prevented downtime** |
-| **Consulting Payback Period** | 6–12 Months | **< 45 Days** |
+| **Annual Revenue Saved (Avg Enterprise)** | High Leakage (Delayed mitigation) | **$4.2M in prevented downtime** |
+| **Consulting Payback Period** | 6–12 Months | **< 3 Weeks** |
+
+*\*ROI Assumptions: Downtime-prevention estimate assumes CausalPulse AI recovers 0.35% of annual revenue currently lost to unattributed operational downtime/leakage—consistent with industry benchmarks for downtime cost in high-transaction digital enterprises. Applied to a $1.2B F500 baseline revenue, yielding $4.2M. Labor saved assumes 25 major incidents/year taking 96 hours of triage at $150/hr.*
 
 ---
 
