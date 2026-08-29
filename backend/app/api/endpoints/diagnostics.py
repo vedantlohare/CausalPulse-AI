@@ -56,13 +56,21 @@ def generate_telemetry_df(scenario: str, window_hours: int) -> pd.DataFrame:
     anomaly_len = min(12, max(2, window_hours // 4))
     anomaly_idx = slice(-anomaly_len, None)
     
-    if "Outage Incident" in scenario:
+    if "Multi-Factor" in scenario:
+        # DB contention + third-party gateway fail
+        db_query_time[anomaly_idx] += np.random.uniform(100, 200, anomaly_len)
+        api_latency[anomaly_idx] += np.random.uniform(150, 300, anomaly_len)
+        payment_gateway_latency[anomaly_idx] += np.random.uniform(300, 500, anomaly_len)
+        checkout_success[anomaly_idx] -= np.random.uniform(0.3, 0.5, anomaly_len)
+        revenue[anomaly_idx] -= np.random.uniform(20000, 40000, anomaly_len)
+    elif "Outage Incident" in scenario:
         redis_hit_rate[anomaly_idx] -= np.random.uniform(0.3, 0.5, anomaly_len)
         db_query_time[anomaly_idx] += np.random.uniform(200, 400, anomaly_len)
         api_latency[anomaly_idx] += np.random.uniform(250, 500, anomaly_len)
         checkout_success[anomaly_idx] -= np.random.uniform(0.15, 0.30, anomaly_len)
         revenue[anomaly_idx] -= np.random.uniform(15000, 25000, anomaly_len)
     elif "Payment Gateway" in scenario:
+        payment_gateway_latency[anomaly_idx] += np.random.uniform(300, 500, anomaly_len)
         checkout_success[anomaly_idx] -= np.random.uniform(0.2, 0.4, anomaly_len)
         revenue[anomaly_idx] -= np.random.uniform(10000, 20000, anomaly_len)
     elif "Flash Sale Traffic Surge" in scenario:
@@ -70,13 +78,6 @@ def generate_telemetry_df(scenario: str, window_hours: int) -> pd.DataFrame:
         api_latency[anomaly_idx] += np.random.uniform(150, 300, anomaly_len)
         checkout_success[anomaly_idx] -= np.random.uniform(0.05, 0.15, anomaly_len)
         revenue[anomaly_idx] += np.random.uniform(30000, 50000, anomaly_len)
-    elif "Multi-Factor" in scenario:
-        # DB contention + third-party gateway fail
-        db_query_time[anomaly_idx] += np.random.uniform(100, 200, anomaly_len)
-        api_latency[anomaly_idx] += np.random.uniform(150, 300, anomaly_len)
-        payment_gateway_latency[anomaly_idx] += np.random.uniform(300, 500, anomaly_len)
-        checkout_success[anomaly_idx] -= np.random.uniform(0.3, 0.5, anomaly_len)
-        revenue[anomaly_idx] -= np.random.uniform(20000, 40000, anomaly_len)
     elif "Ambiguous Signal" in scenario:
         revenue[anomaly_idx] -= np.random.uniform(15000, 25000, anomaly_len)
     elif "New Product Launch" in scenario:

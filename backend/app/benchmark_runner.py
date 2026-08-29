@@ -15,8 +15,8 @@ def run_benchmark():
     scenarios = [
         {"name": "Clear Outage - Redis Fail", "type": "Outage Incident", "expected": ["redis_hit_rate"], "should_abstain": False},
         {"name": "Clear Outage - Redis Fail 2", "type": "Outage Incident", "expected": ["redis_hit_rate"], "should_abstain": False},
-        {"name": "Payment Gateway Down", "type": "Payment Gateway", "expected": ["checkout_success_rate"], "should_abstain": False},
-        {"name": "Payment Gateway Intermittent", "type": "Payment Gateway", "expected": ["checkout_success_rate"], "should_abstain": False},
+        {"name": "Payment Gateway Down", "type": "Payment Gateway", "expected": ["payment_gateway_latency_ms", "checkout_success_rate"], "should_abstain": False},
+        {"name": "Payment Gateway Intermittent", "type": "Payment Gateway", "expected": ["payment_gateway_latency_ms", "checkout_success_rate"], "should_abstain": False},
         {"name": "Flash Sale Spike", "type": "Flash Sale Traffic Surge", "expected": ["db_query_time_ms"], "should_abstain": False},
         {"name": "Flash Sale Spike 2", "type": "Flash Sale Traffic Surge", "expected": ["db_query_time_ms"], "should_abstain": False},
         {"name": "Multi-Factor Failure", "type": "Multi-Factor", "expected": ["db_query_time_ms", "payment_gateway_latency_ms"], "should_abstain": False},
