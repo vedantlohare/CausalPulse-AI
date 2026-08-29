@@ -17,12 +17,17 @@
 2. [The Core Problem in Enterprise BI](#-the-core-problem-in-enterprise-bi)
 3. [Architecture Overview](#-architecture-overview)
 4. [Key Architectural Innovations](#-key-architectural-innovations)
-5. [Project Directory Layout](#-project-directory-layout)
+5. [Requirements & Dependencies](#-requirements--dependencies)
 6. [Quickstart & Installation](#-quickstart--installation)
-7. [How to Demo CausalPulse AI](#-how-to-demo-causalpulse-ai)
-8. [API Specification & Endpoints](#-api-specification--endpoints)
-9. [Enterprise Governance, Security & Guardrails](#-enterprise-governance-security--guardrails)
-10. [Business Case & Financial ROI Model](#-business-case--financial-roi-model)
+7. [Configuration](#-configuration)
+8. [Project Directory Layout](#-project-directory-layout)
+9. [How to Demo CausalPulse AI](#-how-to-demo-causalpulse-ai)
+10. [API Specification & Endpoints](#-api-specification--endpoints)
+11. [Enterprise Governance, Security & Guardrails](#-enterprise-governance-security--guardrails)
+12. [Business Case & Financial ROI Model](#-business-case--financial-roi-model)
+13. [Real-World Production Architecture](#-real-world-production-architecture-scaling-beyond-demos)
+14. [Troubleshooting & FAQ](#-troubleshooting--faq)
+15. [Maintainers](#-maintainers)
 
 ---
 
@@ -110,16 +115,80 @@ Executives can simulate the downstream impact of pulling controllable business l
 
 ---
 
-## 🛡️ Enterprise Governance, Security & Guardrails
+## 📦 Requirements & Dependencies
 
-* **PII Scrubbing Guardrails (`guardrails_rbac.py`):** Automatically sanitizes credit cards, phone numbers, and emails (`[REDACTED_PII]`) before prompting.
-* **Role-Based Access Control (RBAC):** Literal, enforced redaction of raw metric values at the API layer based on the querying persona's clearance, logged for compliance.
-* **LLM Unit Economics:** Tracks real token consumption and estimated cost per diagnostic pulse directly on the UI banner.
-* **Offline Feedback Capture:** Analyst overrides are stored in immutable logs for offline model retraining and batch evaluation.
-* **Audit Logging:** Every invocation, data access redaction, and action lever simulation is appended to a structured audit history JSON.
+### System Requirements
+* **Operating System:** Windows 10/11, macOS (Intel/Apple Silicon), or Linux (Ubuntu 20.04+)
+* **Python Runtime:** Python 3.10, 3.11, 3.12, or 3.13
+* **Memory:** Minimum 4 GB RAM (8 GB recommended)
+* **Network:** Localhost ports `8000` (FastAPI) and `8501` (Streamlit) available
 
-### 🧠 The Core Architecture Tradeoff: Deterministic vs. Generative
-A key design decision in CausalPulse AI is **not relying on an LLM for quantitative truth or root-cause guessing**. Instead, we built a **Deterministic Frequentist (Z-Score)** core combined with **DAG Topological Traversal**. We deliberately chose this over formal black-box Causal Discovery (e.g., NOTEARS/LiNGAM) for **speed and absolute auditability**. The LLM is strictly confined to the synthesis layer—reading deterministic proofs and semantic RAG context to generate persona-aware narratives. This mathematically eliminates hallucination in root-cause isolation.
+### Key Python Packages
+* `fastapi` & `uvicorn` (Backend REST API service)
+* `streamlit` & `plotly` (Interactive executive dashboard & DAG graph visualizer)
+* `networkx` (Topological graph traversal and causal inference)
+* `chromadb` (Local semantic vector store for qualitative context)
+* `google-genai` (Gemini Pro synthesis with built-in offline deterministic fallback)
+* `pydantic` & `pyyaml` (Semantic contract schema parsing and validation)
+
+---
+
+## 🚀 Quickstart & Installation
+
+### 1. Clone & Enter Directory
+```bash
+git clone https://github.com/vedantlohare/CausalPulse-AI.git
+cd CausalPulse-AI
+```
+
+### 2. Install Dependencies
+```bash
+python -m pip install -r requirements.txt
+```
+
+### 3. Start Backend Server (Terminal 1)
+```bash
+python -m uvicorn app.main:app --app-dir backend --host 127.0.0.1 --port 8000 --reload
+```
+* **API URL:** `http://127.0.0.1:8000`
+* **Interactive Swagger Docs:** `http://127.0.0.1:8000/docs`
+
+### 4. Start Frontend Dashboard (Terminal 2)
+```bash
+python -m streamlit run frontend/app.py
+```
+* **Dashboard URL:** `http://localhost:8501`
+
+---
+
+## ⚙️ Configuration
+
+CausalPulse AI is designed for flexibility across production, testing, and air-gapped demo environments.
+
+### 1. Environment Variables (`.env`)
+Create an optional `.env` file in the root or `backend/` directory:
+```ini
+# Google Gemini API Key (Optional: System runs deterministic offline fallback if unset)
+GEMINI_API_KEY=your_gemini_api_key_here
+
+# Backend host and port binding
+BACKEND_HOST=127.0.0.1
+BACKEND_PORT=8000
+
+# Logging & Environment
+LOG_LEVEL=INFO
+ENVIRONMENT=production
+```
+
+### 2. KPI Semantic Contract (`backend/app/schema/kpi_contract.yml`)
+Enterprise KPI definitions, causal parent-child dependencies, anomaly thresholds, and role-based access limits are defined in a governed YAML contract. You can configure:
+* **Metric Nodes:** Add new KPIs (e.g., `checkout_success_rate`, `payment_gateway_latency`).
+* **Causal Edges:** Define which upstream metric influences downstream outcomes.
+* **Sensitivity Thresholds:** Configure custom Z-score cutoffs (default `3.0`).
+* **Role Permissions:** Restrict metric access by persona (`Ops_Lead` vs. `CMO`).
+
+### 3. Operational Log Streaming (`backend/mock_data/operational_logs.json`)
+Ingest custom Jira incident tickets, Slack PagerDuty war-room snippets, or Zendesk customer complaints by placing JSON objects with timestamp, source, and text attributes.
 
 ---
 
@@ -153,40 +222,8 @@ causalpulse-ai/
 │   └── requirements.txt                # Backend & Frontend dependency specification
 ├── frontend/
 │   └── app.py                          # Streamlit interactive executive dashboard & DAG visualizer
-└── README.md                           # This file
+└── README.md                           # Comprehensive documentation
 ```
-
----
-
-## 🚀 Quickstart & Installation
-
-### 1. Prerequisites
-* Python 3.10, 3.11, 3.12, or 3.13
-* Windows PowerShell, macOS Terminal, or Linux Bash
-
-### 2. Clone & Enter Directory
-```bash
-git clone https://github.com/vedantlohare/CausalPulse-AI.git
-cd CausalPulse-AI
-```
-
-### 3. Install Dependencies
-```bash
-python -m pip install -r requirements.txt
-```
-
-### 4. Start Backend Server (Terminal 1)
-```bash
-python -m uvicorn app.main:app --app-dir backend --host 127.0.0.1 --port 8000 --reload
-```
-* **API URL:** `http://127.0.0.1:8000`
-* **Interactive Swagger Documentation:** `http://127.0.0.1:8000/docs`
-
-### 5. Start Frontend Dashboard (Terminal 2)
-```bash
-python -m streamlit run frontend/app.py
-```
-* **Dashboard URL:** `http://localhost:8501`
 
 ---
 
@@ -206,10 +243,46 @@ Navigate through the Streamlit interface to test all 5 pre-configured incident s
 1. **Live Diagnostic Workspace:** Select a scenario preset, choose an **Executive Persona** (`Ops_Lead` vs. `CMO`), and click **⚡ Run Diagnostic Pulse**.
 2. **Topological DAG & Financial Impact:** Examine the Plotly DAG and observe how true root causes are separated from downstream symptoms. Look for the Execution Latency waterfall in the top metrics.
 3. **Qualitative Evidence (RAG):** Review corroborating Jira tickets and Slack logs with automated PII masking (`[REDACTED_PHONE]`).
-4. **Prescriptive Simulator:** Select an action lever to quantify recovery percentages, which now display in visually styled metric cards showing cascading protection.
+4. **Prescriptive Simulator:** Select an action lever to quantify recovery percentages, which display in visually styled metric cards showing cascading protection.
 5. **Download Executive Briefing:** Click **📥 Download Executive Report** to export a distribution-ready markdown brief.
 6. **Empirical Benchmark (v2.0):** Open the Benchmark tab and run the 15-case synthetic suite to mathematically prove the engine's 100% abstention accuracy against hallucinations.
 7. **Semantic Contracts & Continuous Learning:** Inspect governed KPI rules under Tab 3 and test submitting human analyst overrides under Tab 5.
+
+---
+
+## 🔌 API Specification & Endpoints
+
+| Method | Endpoint | Description |
+| :--- | :--- | :--- |
+| `POST` | `/api/v1/diagnostics/run-diagnostics` | Executes anomaly detection, DAG root cause tracing, RAG retrieval, and executive synthesis. |
+| `POST` | `/api/v1/diagnostics/simulate-lever` | Simulates the downstream impact of pulling a business lever on the causal graph. |
+| `POST` | `/api/v1/diagnostics/feedback` | Captures human-in-the-loop analyst verdicts (`APPROVED`, `REJECTED`, `OVERRIDDEN`). |
+| `GET` | `/api/v1/diagnostics/audit-logs` | Retrieves the immutable compliance audit history. |
+| `GET` | `/api/v1/diagnostics/evaluate` | Runs the 15-case synthetic benchmark suite for empirical defensibility. |
+
+---
+
+## 🛡️ Enterprise Governance, Security & Guardrails
+
+* **PII Scrubbing Guardrails (`guardrails_rbac.py`):** Automatically sanitizes credit cards, phone numbers, and emails (`[REDACTED_PII]`) before prompting.
+* **Role-Based Access Control (RBAC):** Literal, enforced redaction of raw metric values at the API layer based on the querying persona's clearance, logged for compliance.
+* **LLM Unit Economics:** Tracks real token consumption and estimated cost per diagnostic pulse directly on the UI banner (<$0.003 per pulse).
+* **Offline Feedback Capture:** Analyst overrides are stored in immutable logs for offline model retraining and batch evaluation.
+* **Audit Logging:** Every invocation, data access redaction, and action lever simulation is appended to a structured audit history JSON.
+
+### 🧠 The Core Architecture Tradeoff: Deterministic vs. Generative
+A key design decision in CausalPulse AI is **not relying on an LLM for quantitative truth or root-cause guessing**. Instead, we built a **Deterministic Frequentist (Z-Score)** core combined with **DAG Topological Traversal**. We deliberately chose this over formal black-box Causal Discovery (e.g., NOTEARS/LiNGAM) for **speed and absolute auditability**. The LLM is strictly confined to the synthesis layer—reading deterministic proofs and semantic RAG context to generate persona-aware narratives. This mathematically eliminates hallucination in root-cause isolation.
+
+---
+
+## 💰 Business Case & Financial ROI Model
+
+| Metric | Traditional Enterprise BI Fire-Drills | With CausalPulse AI |
+| :--- | :--- | :--- |
+| **Mean Time to Identify (MTTI)** | 72 to 120 Hours (3–5 Business Days) | **< 30 Seconds** |
+| **Analyst Labor per Incident** | 4 Analysts × 24 Hours = 96 Hours (~$14,400) | **0.1 Hours (~$15)** |
+| **Annual Revenue Saved (Avg Enterprise)** | High Leakage (Delayed mitigation) | **$3.8M+ in prevented downtime** |
+| **Consulting Payback Period** | 6–12 Months | **< 45 Days** |
 
 ---
 
@@ -237,33 +310,38 @@ In production enterprise deployments, CausalPulse AI functions as a continuous, 
    │
    └──► 5. Self-Learning Priors (HITL Feedback)
         Analyst overrides continuously fine-tune graph edge weights and statistical priors.
-    - **Outcome:** The engine learns human business context, continuously improving accuracy.
+        - Outcome: The engine learns human business context, continuously improving accuracy.
 ```
 
 ---
 
-## 🔌 API Specification & Endpoints
+## ❓ Troubleshooting & FAQ
 
-| Method | Endpoint | Description |
-| :--- | :--- | :--- |
-| `POST` | `/api/v1/diagnostics/run-diagnostics` | Executes anomaly detection, DAG root cause tracing, RAG retrieval, and executive synthesis. |
-| `POST` | `/api/v1/diagnostics/simulate-lever` | Simulates the downstream impact of pulling a business lever on the causal graph. |
-| `POST` | `/api/v1/diagnostics/feedback` | Captures human-in-the-loop analyst verdicts (`APPROVED`, `REJECTED`, `OVERRIDDEN`). |
-| `GET` | `/api/v1/diagnostics/audit-logs` | Retrieves the immutable compliance audit history. |
-| `GET` | `/api/v1/diagnostics/evaluate` | Runs the 15-case synthetic benchmark suite for empirical defensibility. |
+**Q: Why does CausalPulse AI enter "Active Ambiguity Mode"?**  
+**A:** When telemetry is missing or qualitative evidence is contradictory, the engine calculates a composite confidence score. If $\text{Score} < 0.65$, CausalPulse deliberately abstains from guessing root causes to prevent costly hallucinations. Instead, it generates a Guided Diagnostic Hypothesis Tree with targeted SQL queries for human analysts.
 
----
+**Q: Do I need a paid Google Gemini API key to run and evaluate the prototype?**  
+**A:** No. CausalPulse AI includes an intelligent deterministic fallback synthesizer (`gemini_client.py`). If no API key is supplied, the system automatically uses deterministic rule templates to generate complete, structured executive briefings, DAG proofs, and counterfactual simulations offline.
 
-## 💰 Business Case & Financial ROI Model
+**Q: How does CausalPulse AI prevent customer data leakage in regulated environments (HIPAA / GDPR / SOC2)?**  
+**A:** All unstructured operational logs pass through `guardrails_rbac.py` before vector storage or LLM prompting. Regex sanitizers automatically replace credit card numbers (`[REDACTED_CC]`), phone numbers (`[REDACTED_PHONE]`), and customer emails (`[REDACTED_EMAIL]`).
 
-| Metric | Traditional Enterprise BI Fire-Drills | With CausalPulse AI |
-| :--- | :--- | :--- |
-| **Mean Time to Identify (MTTI)** | 72 to 120 Hours (3–5 Business Days) | **< 30 Seconds** |
-| **Analyst Labor per Incident** | 4 Analysts × 24 Hours = 96 Hours (~$14,400) | **0.1 Hours (~$15)** |
-| **Annual Revenue Saved (Avg Enterprise)** | High Leakage (Delayed mitigation) | **$3.8M+ in prevented downtime** |
-| **Consulting Payback Period** | 6–12 Months | **< 45 Days** |
+**Q: How do I resolve `Address already in use` when starting FastAPI or Streamlit?**  
+**A:** Specify an alternative port:
+* For Backend: `python -m uvicorn app.main:app --app-dir backend --port 8001`
+* For Frontend: `python -m streamlit run frontend/app.py --server.port 8502`
 
 ---
 
-*Developed by **Team StarkProtocol** for the **Accenture Innovation Challenge 2026**.*
+## 👥 Maintainers
 
+Developed with pride for the **Accenture Innovation Challenge 2026 (Round 2: Prototype Development)**:
+
+* **Vedant Sachin Lohare (Team Leader)**
+  * Indian Institute of Technology, Kanpur — Aerospace Engineering ('28)
+  * GitHub: [@vedantlohare](https://github.com/vedantlohare)
+* **Smira Jaitley**
+  * Indian Institute of Technology, Kanpur — Chemical Engineering ('28)
+  * Team: **StarkProtocol**
+
+*For inquiries or enterprise demonstrations, please submit an issue or pull request via the [GitHub Repository](https://github.com/vedantlohare/CausalPulse-AI).*
