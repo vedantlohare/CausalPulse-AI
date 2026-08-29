@@ -7,7 +7,7 @@ from pathlib import Path
 import yaml
 import time
 
-st.set_page_config(layout="wide", page_title="CausalPulse AI | Enterprise KPI Diagnostic", page_icon="⚡")
+st.set_page_config(layout="wide", page_title="CausalPulse AI | Enterprise KPI Diagnostic", page_icon="")
 
 # Custom CSS for Premium Design
 st.markdown("""
@@ -136,7 +136,7 @@ def render_causal_graph(root_causes, anomalies, contract):
     st.plotly_chart(fig, use_container_width=True)
 
 # Main Navigation
-st.sidebar.title("⚡ CausalPulse AI")
+st.sidebar.title("CausalPulse AI")
 st.sidebar.markdown("##### *Enterprise KPI Diagnostic Engine*")
 st.sidebar.markdown("---")
 
@@ -150,13 +150,13 @@ st.sidebar.markdown("### Demo Scenario Selector")
 scenario_preset = st.sidebar.selectbox(
     "Select Incident Scenario",
     [
-        "🔥 Outage Incident (Redis Failover -> DB Spike -> Revenue Drop)",
-        "💳 Payment Gateway Degradation (Third-Party Webhook Latency -> Churn Risk)",
-        "⚡ Flash Sale Traffic Surge (5x API Load -> DB Contention)",
-        "🌪️ Multi-Factor (Traffic Surge + Payment Gateway Failure)",
-        "📈 New Product Launch (Sparse Data / Insufficient History)",
-        "⚠️ Ambiguous Signal (Low Confidence / Abstain Mode)",
-        "✅ Steady State Baseline (Healthy / No Anomalies)"
+        "Outage Incident (Redis Failover -> DB Spike -> Revenue Drop)",
+        "Payment Gateway Degradation (Third-Party Webhook Latency -> Churn Risk)",
+        "Flash Sale Traffic Surge (5x API Load -> DB Contention)",
+        "Multi-Factor (Traffic Surge + Payment Gateway Failure)",
+        "New Product Launch (Sparse Data / Insufficient History)",
+        "Ambiguous Signal (Low Confidence / Abstain Mode)",
+        "Steady State Baseline (Healthy / No Anomalies)"
     ]
 )
 
@@ -182,12 +182,12 @@ st.sidebar.caption(f"Active Analysis Window: **{window} Hours**")
 
 # ----------------- TAB 1: LIVE DIAGNOSTIC WORKSPACE -----------------
 if tab_selection == "Live Diagnostic Workspace":
-    st.title("🎯 Live Incident & Causal Attribution")
+    st.title("Live Incident & Causal Attribution")
     st.caption("Deterministic Causal Inference (NetworkX/Stats) + Contextual Semantic RAG + Prescriptive Action")
     
     col_btn, col_info = st.columns([1, 4])
     with col_btn:
-        run_pulse = st.button("⚡ Run Diagnostic Pulse", type="primary", use_container_width=True)
+        run_pulse = st.button("Run Diagnostic Pulse", type="primary", use_container_width=True)
         
     if run_pulse:
         start_time = time.time()
@@ -240,30 +240,33 @@ if tab_selection == "Live Diagnostic Workspace":
             st.markdown(f"<div class='metric-card'><span class='badge badge-info'>Anomalies Detected</span><h3>{len(anomalies)} Nodes</h3></div>", unsafe_allow_html=True)
         
         # Telemetry Estimation (Tokens)
-        estimated_tokens = len(data.get("executive_summary", "")) // 4 + 650
-        cost_estimate = (estimated_tokens / 1000) * 0.0005 # Assuming Gemini Pro cost
+        llm_telemetry = data.get("llm_telemetry", {"model_calls": 0, "total_tokens": 0, "estimated_cost_usd": 0.0, "is_mock": False})
+        total_tokens = llm_telemetry.get("total_tokens", 0)
+        cost_estimate = llm_telemetry.get("estimated_cost_usd", 0.0)
+        model_calls = llm_telemetry.get("model_calls", 0)
+        mock_label = " (Sim)" if llm_telemetry.get("is_mock", False) else ""
         with b6:
-            st.markdown(f"<div class='metric-card'><span class='badge badge-warning'>LLM Telemetry</span><h3>{estimated_tokens} tokens</h3><p style='margin:0; font-size:12px; color:#A0AEC0;'>Model Calls: 1 | Est. Cost: ${cost_estimate:.5f}</p></div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='metric-card'><span class='badge badge-warning'>LLM Telemetry{mock_label}</span><h3>{total_tokens} tokens</h3><p style='margin:0; font-size:12px; color:#A0AEC0;'>Model Calls: {model_calls} | Est. Cost: ${cost_estimate:.5f}</p></div>", unsafe_allow_html=True)
             
         st.markdown("<br>", unsafe_allow_html=True)
         
         # 1. Executive Summary
         if not ambiguity.get("is_ambiguous", False):
             st.markdown("<div class='summary-card'>", unsafe_allow_html=True)
-            st.subheader(f"📋 Executive Briefing ({role} Persona)")
+            st.subheader(f"Executive Briefing ({role} Persona)")
             st.write(data.get("executive_summary", data.get("message", "System operating within baseline.")))
             
             # Confidence Breakdown
             breakdown = ambiguity.get("evidence_breakdown", [])
             if breakdown:
-                st.markdown("##### 🛡️ Confidence Evidence Checklist")
+                st.markdown("##### Confidence Evidence Checklist")
                 for item in breakdown:
                     st.markdown(f"<span style='color:#A0AEC0; font-size:14px;'>{item}</span>", unsafe_allow_html=True)
                     
             st.markdown("</div>", unsafe_allow_html=True)
         else:
             st.markdown("<div class='ambiguity-card'>", unsafe_allow_html=True)
-            st.subheader("⚠️ Active Ambiguity Mode (Confidence < 0.65)")
+            st.subheader("Active Ambiguity Mode (Confidence < 0.65)")
             st.write(ambiguity.get("reason", "Ambiguous diagnostic signals detected."))
             st.markdown("#### Guided Diagnostic Hypothesis Tree")
             for hyp in ambiguity.get("hypothesis_tree", []):
@@ -284,7 +287,7 @@ if tab_selection == "Live Diagnostic Workspace":
         )
             
         # 2. Financial Impact Breakdown
-        st.subheader("💰 Real-Time Financial Impact Quantification")
+        st.subheader("Real-Time Financial Impact Quantification")
         impacts = diagnostics.get("financial_impact", {})
         if impacts:
             f_cols = st.columns(len(impacts))
@@ -299,9 +302,9 @@ if tab_selection == "Live Diagnostic Workspace":
                         </div>
                     """, unsafe_allow_html=True)
         else:
-            st.info("✅ No financial drain computed. All metric thresholds are within acceptable enterprise variance.")
+            st.info("No financial drain computed. All metric thresholds are within acceptable enterprise variance.")
             
-        with st.expander("🔍 View Modeled Financial Assumptions (from kpi_contract.yml)"):
+        with st.expander("View Modeled Financial Assumptions (from kpi_contract.yml)"):
             assumptions = contract.get("financial_assumptions", {}) if 'contract' in locals() else {"avg_order_value_usd": 150.0, "baseline_checkouts_per_hour": 1000}
             st.json(assumptions)
             
@@ -310,9 +313,14 @@ if tab_selection == "Live Diagnostic Workspace":
         # 2.5 Temporal Waterfall
         waterfall = diagnostics.get("temporal_waterfall", [])
         if waterfall:
-            st.subheader("⏱️ Temporal Incident Waterfall")
+            st.subheader("Temporal Incident Waterfall")
             for idx, event in enumerate(waterfall):
-                st.markdown(f"**[{idx+1}] {event['timestamp']}**: `{event['metric']}` ({event['direction']}, z-score: {event['z_score']:.2f})")
+                # Check if it was redacted
+                raw_data = anomalies.get(event['metric'], {})
+                if raw_data.get('value') == "[RESTRICTED — insufficient role clearance]":
+                    st.markdown(f"**[{idx+1}] {event['timestamp']}**: `{event['metric']}` <span class='badge badge-warning'>Restricted for this persona</span>", unsafe_allow_html=True)
+                else:
+                    st.markdown(f"**[{idx+1}] {event['timestamp']}**: `{event['metric']}` ({event['direction']}, z-score: {event['z_score']:.2f})")
             st.markdown("<br>", unsafe_allow_html=True)
             
         # 3. DAG Graph & Qualitative Evidence
@@ -328,7 +336,7 @@ if tab_selection == "Live Diagnostic Workspace":
             # Attribution Scores
             attribution = diagnostics.get("attribution_scores", {})
             if attribution and root_causes:
-                st.markdown("### 🧮 Evidence Provenance Matrix")
+                st.markdown("### Evidence Provenance Matrix")
                 sorted_rcs = sorted(root_causes, key=lambda rc: attribution.get(rc, {}).get("overall_score", 0), reverse=True)
                 for idx, rc in enumerate(sorted_rcs):
                     if rc in attribution:
@@ -343,26 +351,36 @@ if tab_selection == "Live Diagnostic Workspace":
                             "4. Operational Evidence (RAG)": scores['operational_evidence']
                         })
         with col_rag:
-            st.subheader("🔍 Qualitative Log Evidence (RAG)")
+            st.subheader("Qualitative Log Evidence (RAG)")
             st.caption("Masked PII Guardrails Applied (`[REDACTED_PII]`)")
+            
+            rag_mode = data.get("evidence", {}).get("rag_mode", "unknown")
+            mode_badge_color = "badge-success" if rag_mode == "vector" else "badge-warning"
+            mode_display = "Vector RAG (ChromaDB)" if rag_mode == "vector" else "Keyword Fallback"
+            st.markdown(f"<div style='margin-bottom: 10px;'><span class='badge {mode_badge_color}'>Retrieval Engine: {mode_display}</span></div>", unsafe_allow_html=True)
+
             rag_list = data.get("evidence", {}).get("rag_context", [])
+            telemetry_freshness = data.get("evidence", {}).get("structured_telemetry_freshness", "Real-time")
+            st.markdown(f"<span style='font-size: 0.85em; color: #A0AEC0;'>Structured Telemetry: {telemetry_freshness}</span>", unsafe_allow_html=True)
+            
             if rag_list:
                 for ctx in rag_list:
                     meta = ctx.get('metadata', {})
-                    st.info(f"**{meta.get('source', 'Log')} ({meta.get('type', 'Alert')}) | {meta.get('timestamp', '')}**\n\n{ctx.get('content', '')}")
+                    freshness = meta.get('last_refreshed', 'Unknown')
+                    st.info(f"**{meta.get('source', 'Log')} ({meta.get('type', 'Alert')}) | {meta.get('timestamp', '')}** *Refreshed: {freshness}*\n\n{ctx.get('content', '')}")
             else:
                 st.info("ℹ️ No active operational alerts or incident complaints logged for the current healthy baseline.")
                 
         # 4. Action Levers & Counterfactual Simulator
         st.divider()
-        st.subheader("⚙️ Prescriptive Decision & Counterfactual Simulator")
+        st.subheader("Prescriptive Decision & Counterfactual Simulator")
         st.write("Evaluate mitigation strategies before taking action in production.")
         
         sim_col1, sim_col2 = st.columns([1, 2])
         with sim_col1:
             contract_levers = list(load_kpi_contract().get("levers", {}).keys()) or ["reroute_traffic", "scale_db_replicas", "circuit_breaker_payment_gateway"]
             selected_lever = st.selectbox("Select Controllable Business Lever", contract_levers)
-            sim_btn = st.button("🚀 Run Counterfactual Simulation", use_container_width=True)
+            sim_btn = st.button("Run Counterfactual Simulation", use_container_width=True)
         with sim_col2:
             if sim_btn:
                 try:
@@ -410,7 +428,7 @@ elif tab_selection == "Empirical Benchmark (v2.0)":
                 if res.status_code == 200:
                     metrics = res.json()
                     
-                    st.markdown("### 📊 Benchmark Results")
+                    st.markdown("### Benchmark Results")
                     m1, m2, m3 = st.columns(3)
                     m1.metric("Overall Accuracy", f"{metrics['accuracy_pct']:.1f}%")
                     m2.metric("Abstention Accuracy (True Negatives)", f"{metrics['abstention_accuracy_pct']:.1f}%")
@@ -418,7 +436,7 @@ elif tab_selection == "Empirical Benchmark (v2.0)":
                     
                     st.markdown("### 🔬 Scenario Breakdown")
                     for case in metrics['details']:
-                        icon = "✅" if case['passed'] else "❌"
+                        icon = "" if case['passed'] else "❌"
                         with st.expander(f"{icon} {case['scenario']}"):
                             st.json(case)
                 else:
@@ -447,7 +465,7 @@ elif tab_selection == "Semantic KPI Contracts":
 
 # ----------------- TAB 3: AUDIT TRAIL & TELEMETRY -----------------
 elif tab_selection == "Audit Trail & Telemetry":
-    st.title("📊 Compliance Audit Trail & Runtime Telemetry")
+    st.title("Compliance Audit Trail & Runtime Telemetry")
     st.caption("Immutable state history, LLM token consumption, latency, and explainability records")
     try:
         audit_resp = requests.get(f"{API_URL}/audit-logs")
@@ -464,8 +482,8 @@ elif tab_selection == "Audit Trail & Telemetry":
 
 # ----------------- TAB 4: CONTINUOUS LEARNING LOOP -----------------
 elif tab_selection == "Continuous Learning Loop":
-    st.title("🔄 Human-In-The-Loop Feedback Engine")
-    st.caption("Capture analyst validation and overrides to continuously optimize DAG priors and causal weights")
+    st.title("Human-In-The-Loop Feedback Engine")
+    st.caption("Capture analyst validation and overrides for offline model retraining")
     
     with st.form("feedback_form"):
         incident_id = st.text_input("Incident / Run ID", "INC-2026-08-15-US-EAST")
@@ -486,6 +504,6 @@ elif tab_selection == "Continuous Learning Loop":
                 })
                 if fb_resp.status_code == 200:
                     st.success("Analyst feedback successfully recorded!")
-                    st.info("🧠 **Bayesian Prior Updated**: The causal graph engine has adjusted the edge weights for future inferences based on your override.")
+                    st.info("**Feedback Captured**: The analyst verdict has been stored in offline logs for future model retraining and batch evaluation.")
             except Exception as e:
                 st.error(f"Error recording feedback: {e}")
