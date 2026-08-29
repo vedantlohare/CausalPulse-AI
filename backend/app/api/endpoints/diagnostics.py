@@ -250,7 +250,7 @@ async def run_diagnostics(req: DiagnosticRequest):
     executive_summary, token_usage = gemini_client.generate_narrative(prompt)
     latency_breakdown["LLM Synthesis"] = round((time.time() - t0) * 1000, 2)
     
-    # Calculate estimated cost (e.g. $0.50/1M prompt, $1.50/1M completion tokens for Gemini Pro 1.5)
+    # Calculate estimated cost (e.g. $0.50/1M prompt, $1.50/1M completion tokens for Gemini 3.1 Pro)
     cost = (token_usage.get("prompt_tokens", 0) / 1000000 * 0.50) + (token_usage.get("completion_tokens", 0) / 1000000 * 1.50)
     
     llm_telemetry = {

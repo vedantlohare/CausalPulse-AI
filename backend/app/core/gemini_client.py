@@ -4,8 +4,8 @@ from app.core.config import settings
 class GeminiClient:
     def __init__(self):
         genai.configure(api_key=settings.GEMINI_API_KEY)
-        # Using Gemini Pro for textual generation
-        self.model = genai.GenerativeModel('gemini-1.5-pro-latest')
+        # Using Gemini 3.1 Pro for textual generation
+        self.model = genai.GenerativeModel('gemini-3.1-pro')
         
     def generate_narrative(self, prompt: str, temperature: float = 0.3) -> tuple[str, dict]:
         """Generates narrative text and tracks tokens."""
