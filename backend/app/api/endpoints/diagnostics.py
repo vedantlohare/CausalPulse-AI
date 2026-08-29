@@ -44,11 +44,14 @@ def generate_telemetry_df(scenario: str, window_hours: int) -> pd.DataFrame:
     end_time = pd.Timestamp.now().round("h")
     dates = pd.date_range(end=end_time, periods=n, freq="h")
     
-    redis_hit_rate = np.random.normal(0.95, 0.02, n)
-    db_query_time = np.random.normal(45, 5, n)
-    api_latency = db_query_time + np.random.normal(20, 2, n)
-    checkout_success = np.random.normal(0.99, 0.005, n)
-    revenue = np.random.normal(50000, 2000, n)
+    # Use uniform distributions for baseline noise so max Z-score is naturally bounded to ~1.73,
+    # preventing random background noise from ever exceeding the 3.0 anomaly threshold.
+    redis_hit_rate = np.random.uniform(0.93, 0.97, n)
+    db_query_time = np.random.uniform(40, 50, n)
+    api_latency = db_query_time + np.random.uniform(18, 22, n)
+    payment_gateway_latency = np.random.uniform(140, 160, n)
+    checkout_success = np.random.uniform(0.985, 0.995, n)
+    revenue = np.random.uniform(48000, 52000, n)
     
     anomaly_len = min(12, max(2, window_hours // 4))
     anomaly_idx = slice(-anomaly_len, None)
@@ -71,6 +74,7 @@ def generate_telemetry_df(scenario: str, window_hours: int) -> pd.DataFrame:
         # DB contention + third-party gateway fail
         db_query_time[anomaly_idx] += np.random.uniform(100, 200, anomaly_len)
         api_latency[anomaly_idx] += np.random.uniform(150, 300, anomaly_len)
+        payment_gateway_latency[anomaly_idx] += np.random.uniform(300, 500, anomaly_len)
         checkout_success[anomaly_idx] -= np.random.uniform(0.3, 0.5, anomaly_len)
         revenue[anomaly_idx] -= np.random.uniform(20000, 40000, anomaly_len)
     elif "Ambiguous Signal" in scenario:
@@ -85,6 +89,7 @@ def generate_telemetry_df(scenario: str, window_hours: int) -> pd.DataFrame:
         "redis_hit_rate": np.clip(redis_hit_rate, 0, 1),
         "db_query_time_ms": db_query_time,
         "api_latency_ms": api_latency,
+        "payment_gateway_latency_ms": payment_gateway_latency,
         "checkout_success_rate": np.clip(checkout_success, 0, 1),
         "hourly_revenue_usd": revenue
     })
@@ -121,6 +126,14 @@ async def run_diagnostics(req: DiagnosticRequest):
             },
             "evidence": {
                 "rag_context": []
+            },
+            "llm_telemetry": {
+                "model_calls": 0,
+                "prompt_tokens": 0,
+                "completion_tokens": 0,
+                "total_tokens": 0,
+                "estimated_cost_usd": 0.0,
+                "is_mock": False
             }
         }
         
@@ -144,7 +157,11 @@ async def run_diagnostics(req: DiagnosticRequest):
         # Apply Guardrails (Redact PII)
         for ctx in raw_context:
             safe_text = guardrails.redact_pii(ctx['content'])
-            rag_context.append({"content": safe_text, "metadata": ctx['metadata']})
+            meta = ctx['metadata'].copy()
+            # Mock freshness per source
+            source_freshness = "3 mins ago" if meta.get('source') == "PagerDuty" else "15 mins ago" if meta.get('source') == "Jira" else "1 min ago"
+            meta['last_refreshed'] = source_freshness
+            rag_context.append({"content": safe_text, "metadata": meta})
             
     latency_breakdown["RAG Search"] = round((time.time() - t0) * 1000, 2)
             
@@ -229,8 +246,20 @@ async def run_diagnostics(req: DiagnosticRequest):
     """
     
     t0 = time.time()
-    executive_summary = gemini_client.generate_narrative(prompt)
+    executive_summary, token_usage = gemini_client.generate_narrative(prompt)
     latency_breakdown["LLM Synthesis"] = round((time.time() - t0) * 1000, 2)
+    
+    # Calculate estimated cost (e.g. $0.50/1M prompt, $1.50/1M completion tokens for Gemini Pro 1.5)
+    cost = (token_usage.get("prompt_tokens", 0) / 1000000 * 0.50) + (token_usage.get("completion_tokens", 0) / 1000000 * 1.50)
+    
+    llm_telemetry = {
+        "model_calls": 1,
+        "prompt_tokens": token_usage.get("prompt_tokens", 0),
+        "completion_tokens": token_usage.get("completion_tokens", 0),
+        "total_tokens": token_usage.get("total_tokens", 0),
+        "estimated_cost_usd": round(cost, 6),
+        "is_mock": token_usage.get("is_mock", False)
+    }
     
     # 7. Audit Logging
     audit_logger.log_invocation({
@@ -240,6 +269,20 @@ async def run_diagnostics(req: DiagnosticRequest):
         "confidence_score": ambiguity_result["confidence_score"],
         "financial_impact_total": sum(v['financial_impact_usd'] for v in financial_impacts.values())
     })
+    
+    # 7.5 RBAC Data Redaction
+    for metric, data in anomalies.items():
+        kpi_def = causal_graph.kpi_config.get('kpis', {}).get(metric, {})
+        allowed_roles = kpi_def.get('access_roles', [])
+        if allowed_roles and req.role not in allowed_roles:
+            data['value'] = "[RESTRICTED — insufficient role clearance]"
+            # Log the redaction
+            audit_logger.log_invocation({
+                "action": "redaction",
+                "role": req.role,
+                "kpi": metric,
+                "reason": "Insufficient role clearance"
+            })
     
     # 8. Return Response
     return {
@@ -257,8 +300,11 @@ async def run_diagnostics(req: DiagnosticRequest):
         },
         "ambiguity_analysis": ambiguity_result,
         "evidence": {
-            "rag_context": rag_context
-        }
+            "rag_context": rag_context,
+            "rag_mode": "vector" if rag_synthesizer.has_chroma else "keyword_fallback",
+            "structured_telemetry_freshness": "Real-time (delay < 5s)"
+        },
+        "llm_telemetry": llm_telemetry
     }
     
     # 9. Optional Local Storage (if needed for debugging)

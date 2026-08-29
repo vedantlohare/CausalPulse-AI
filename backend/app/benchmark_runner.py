@@ -19,8 +19,8 @@ def run_benchmark():
         {"name": "Payment Gateway Intermittent", "type": "Payment Gateway", "expected": ["checkout_success_rate"], "should_abstain": False},
         {"name": "Flash Sale Spike", "type": "Flash Sale Traffic Surge", "expected": ["db_query_time_ms"], "should_abstain": False},
         {"name": "Flash Sale Spike 2", "type": "Flash Sale Traffic Surge", "expected": ["db_query_time_ms"], "should_abstain": False},
-        {"name": "Multi-Factor Failure", "type": "Multi-Factor", "expected": ["db_query_time_ms", "checkout_success_rate"], "should_abstain": False},
-        {"name": "Multi-Factor Failure 2", "type": "Multi-Factor", "expected": ["db_query_time_ms", "checkout_success_rate"], "should_abstain": False},
+        {"name": "Multi-Factor Failure", "type": "Multi-Factor", "expected": ["db_query_time_ms", "payment_gateway_latency_ms"], "should_abstain": False},
+        {"name": "Multi-Factor Failure 2", "type": "Multi-Factor", "expected": ["db_query_time_ms", "payment_gateway_latency_ms"], "should_abstain": False},
         
         # Ambiguous Cases
         {"name": "No Tech Failure, Only Revenue Drop", "type": "Ambiguous Signal", "expected": [], "should_abstain": True},
@@ -69,10 +69,18 @@ def run_benchmark():
                 case_passed = True
                 correct_abstentions += 1
         else:
-            # Check if ANY of the expected root causes were identified and it didn't falsely abstain
-            if not is_ambiguous and any(rc in case["expected"] for rc in root_causes):
-                case_passed = True
-                correct_attributions += 1
+            # Check if expected root causes were identified and it didn't falsely abstain
+            if not is_ambiguous:
+                if case["type"] == "Multi-Factor":
+                    # Multi-Factor requires BOTH root causes to be found
+                    if all(rc in root_causes for rc in case["expected"]):
+                        case_passed = True
+                        correct_attributions += 1
+                else:
+                    # Other cases require ANY of the expected root causes
+                    if any(rc in case["expected"] for rc in root_causes):
+                        case_passed = True
+                        correct_attributions += 1
                 
         results.append({
             "scenario": case["name"],
