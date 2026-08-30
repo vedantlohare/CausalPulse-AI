@@ -325,6 +325,9 @@ In production enterprise deployments, CausalPulse AI functions as a continuous, 
 **Q: How do I configure my Gemini API key for production?**  
 **A:** You can set the API key via a `.env` file in the root directory (`GEMINI_API_KEY="AIzaSy..."`) or export it directly in your terminal. If the key is omitted or left as `DUMMY_KEY_FOR_MOCK`, the application seamlessly falls back to an offline deterministic synthesizer.
 
+**Q: Does CausalPulse AI support multiple LLM providers (e.g., OpenAI, Anthropic)?**  
+**A:** Narrative synthesis currently runs on Gemini 3.1 Pro. Because the LLM is called through a single narrow interface (`generate_narrative(prompt)`) and never participates in the mathematical pipeline, swapping providers is a minor config change (adding a new client class), not a redesign.
+
 **Q: I get a `ModelNotFound` error when using a real API key. How do I fix this?**  
 **A:** The prototype calls `gemini-3.1-pro` by default. Depending on your Google Cloud project's access tier or regional rollout (as of mid-2026), you might need to use the preview endpoint. Simply edit `backend/app/core/gemini_client.py` and change the model string to `gemini-3.1-pro-preview`.
 
