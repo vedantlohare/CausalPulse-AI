@@ -1,4 +1,4 @@
-# ⚡ CausalPulse AI
+# CausalPulse AI
 ### *Enterprise KPI Diagnostic & Automated Causal Storytelling Engine*
 **Accenture Innovation Challenge 2026 — Track 3: BusinessIntelligence.ai**  
 **Team:** StarkProtocol (Vedant Sachin Lohare & Smira Jaitley, Indian Institute of Technology, Kanpur)
@@ -12,7 +12,7 @@
 
 ---
 
-## 📑 Table of Contents
+## Table of Contents
 1. [Executive Summary](#-executive-summary)
 2. [The Core Problem in Enterprise BI](#-the-core-problem-in-enterprise-bi)
 3. [Architecture Overview](#-architecture-overview)
@@ -31,7 +31,7 @@
 
 ---
 
-## 🎯 Executive Summary
+## Executive Summary
 
 Modern enterprise dashboards (Tableau, PowerBI, Looker) excel at showing **what** happened (e.g., *"Revenue dropped 8% in US-East"*), but completely fail to explain **why** it happened or **what to do next**. Translating metric drops into root causes requires data analysts to spend **3 to 5 days** running manual SQL queries, joining tables, and cross-checking Slack outage channels.
 
@@ -45,7 +45,7 @@ Modern enterprise dashboards (Tableau, PowerBI, Looker) excel at showing **what*
 
 ---
 
-## 🚨 The Core Problem in Enterprise BI
+## The Core Problem in Enterprise BI
 
 1. **The Fire-Drill Bottleneck:** When a mission-critical KPI drops, leadership initiates an all-hands fire-drill. Analysts sift through millions of rows across disconnected databases, resulting in delayed incident resolution and millions of dollars in revenue leakage.
 2. **Correlation vs. Causation (Simpson's Paradox):** Generic LLM wrappers confuse correlation with causation. If two metrics spike simultaneously (e.g., server latency and marketing impressions), naive AI claims one caused the other.
@@ -54,7 +54,7 @@ Modern enterprise dashboards (Tableau, PowerBI, Looker) excel at showing **what*
 
 ---
 
-## 🏛 Architecture Overview
+## Architecture Overview
 
 CausalPulse AI operates on a rigorous **3-layer architecture**:
 
@@ -91,7 +91,7 @@ flowchart TD
 
 ---
 
-## 🌟 Key Architectural Innovations
+## Key Architectural Innovations
 
 ### 1. Mathematical Anomaly Detection & Baseline Filtering
 To separate genuine anomalies from standard diurnal noise, CausalPulse computes a rolling window mean ($\mu_t$) and standard deviation ($\sigma_t$) across metric telemetry:
@@ -161,7 +161,7 @@ python -m streamlit run frontend/app.py
 
 ---
 
-## ⚙️ Configuration
+## Configuration
 
 CausalPulse AI is designed for flexibility across production, testing, and air-gapped demo environments.
 
@@ -192,7 +192,7 @@ Ingest custom Jira incident tickets, Slack PagerDuty war-room snippets, or Zende
 
 ---
 
-## 📁 Project Directory Layout
+## Project Directory Layout
 
 ```
 causalpulse-ai/
@@ -227,30 +227,30 @@ causalpulse-ai/
 
 ---
 
-## 🖥 How to Demo CausalPulse AI
+## How to Demo CausalPulse AI
 
 Navigate through the Streamlit interface to test all 5 pre-configured incident scenarios:
 
 | Incident Scenario | Scenario Characteristics & System Behavior |
 | :--- | :--- |
-| **🔥 Outage Incident** | Redis failover fails $\rightarrow$ DB query times spike $\rightarrow$ Checkout drops. The engine isolates `redis_hit_rate` in Red, calculates -$3.98M loss, pulls Slack PagerDuty alerts, and allows traffic reroute simulation. |
-| **💳 Payment Gateway Degradation** | Third-party payment provider webhook timeouts cause cart completion drops. Engine isolates payment gateway failure, calculates checkout loss, and suggests engaging circuit breaker levers. |
-| **⚡ Flash Sale Traffic Surge** | APAC marketing broadcast drives 5x surge on API gateway $\rightarrow$ DB connection pool exhaustion. Engine differentiates surge traffic from systemic bugs and suggests DB replica scaling. |
-| **⚠️ Ambiguous Signal** | Partial metric anomaly with conflicting or missing qualitative logs. Confidence score drops below 0.65 $\rightarrow$ Engine enters Active Ambiguity Mode and presents a Guided Hypothesis Tree + SQL queries. |
-| **✅ Steady State Baseline** | Standard operational telemetry with normal diurnal cycles. All Z-scores remain within $|Z| \le 3.0$ $\rightarrow$ System reports healthy status with zero false-alarm fatigue. |
+| **Outage Incident** | Redis failover fails $\rightarrow$ DB query times spike $\rightarrow$ Checkout drops. The engine isolates `redis_hit_rate` in Red, calculates -$3.98M loss, pulls Slack PagerDuty alerts, and allows traffic reroute simulation. |
+| **Payment Gateway Degradation** | Third-party payment provider webhook timeouts cause cart completion drops. Engine isolates payment gateway failure, calculates checkout loss, and suggests engaging circuit breaker levers. |
+| **Flash Sale Traffic Surge** | APAC marketing broadcast drives 5x surge on API gateway $\rightarrow$ DB connection pool exhaustion. Engine differentiates surge traffic from systemic bugs and suggests DB replica scaling. |
+| **Ambiguous Signal** | Partial metric anomaly with conflicting or missing qualitative logs. Confidence score drops below 0.65 $\rightarrow$ Engine enters Active Ambiguity Mode and presents a Guided Hypothesis Tree + SQL queries. |
+| **Steady State Baseline** | Standard operational telemetry with normal diurnal cycles. All Z-scores remain within $|Z| \le 3.0$ $\rightarrow$ System reports healthy status with zero false-alarm fatigue. |
 
 ### Core Workflow Demo Steps:
-1. **Live Diagnostic Workspace:** Select a scenario preset, choose an **Executive Persona** (`Ops_Lead` vs. `CMO`), and click **⚡ Run Diagnostic Pulse**.
+1. **Live Diagnostic Workspace:** Select a scenario preset, choose an **Executive Persona** (`Ops_Lead` vs. `CMO`), and click **Run Diagnostic Pulse**.
 2. **Topological DAG & Financial Impact:** Examine the Plotly DAG and observe how true root causes are separated from downstream symptoms. Look for the Execution Latency waterfall in the top metrics.
 3. **Qualitative Evidence (RAG):** Review corroborating Jira tickets and Slack logs with automated PII masking (`[REDACTED_PHONE]`).
 4. **Prescriptive Simulator:** Select an action lever to quantify recovery percentages, which display in visually styled metric cards showing cascading protection.
-5. **Download Executive Briefing:** Click **📥 Download Executive Report** to export a distribution-ready markdown brief.
+5. **Download Executive Briefing:** Click **Download Executive Report** to export a distribution-ready markdown brief.
 6. **Empirical Benchmark (v2.0):** Open the Benchmark tab and run the 15-case synthetic suite to mathematically prove the engine's 100% abstention accuracy against hallucinations.
 7. **Semantic Contracts & Continuous Learning:** Inspect governed KPI rules under Tab 3 and test submitting human analyst overrides under Tab 5.
 
 ---
 
-## 🔌 API Specification & Endpoints
+## API Specification & Endpoints
 
 | Method | Endpoint | Description |
 | :--- | :--- | :--- |
@@ -262,7 +262,7 @@ Navigate through the Streamlit interface to test all 5 pre-configured incident s
 
 ---
 
-## 🛡️ Enterprise Governance, Security & Guardrails
+## Enterprise Governance, Security & Guardrails
 
 * **PII Scrubbing Guardrails (`guardrails_rbac.py`):** Automatically sanitizes credit cards, phone numbers, and emails (`[REDACTED_PII]`) before prompting.
 * **Role-Based Access Control (RBAC):** Literal, enforced redaction of raw metric values at the API layer based on the querying persona's clearance, logged for compliance.
@@ -270,12 +270,12 @@ Navigate through the Streamlit interface to test all 5 pre-configured incident s
 * **Offline Feedback Capture:** Analyst overrides are stored in immutable logs for offline model retraining and batch evaluation.
 * **Audit Logging:** Every invocation, data access redaction, and action lever simulation is appended to a structured audit history JSON.
 
-### 🧠 The Core Architecture Tradeoff: Deterministic vs. Generative
+### The Core Architecture Tradeoff: Deterministic vs. Generative
 A key design decision in CausalPulse AI is **not relying on an LLM for quantitative truth or root-cause guessing**. Instead, we built a **Deterministic Frequentist (Z-Score)** core combined with **DAG Topological Traversal**. We deliberately chose this over formal black-box Causal Discovery (e.g., NOTEARS/LiNGAM) for **speed and absolute auditability**. The LLM is strictly confined to the synthesis layer—reading deterministic proofs and semantic RAG context to generate persona-aware narratives. This mathematically eliminates hallucination in root-cause isolation.
 
 ---
 
-## 💰 Business Case & Financial ROI Model
+## Business Case & Financial ROI Model
 
 | Metric | Traditional Enterprise BI Fire-Drills | With CausalPulse AI |
 | :--- | :--- | :--- |
@@ -288,7 +288,7 @@ A key design decision in CausalPulse AI is **not relying on an LLM for quantitat
 
 ---
 
-## 🌐 Real-World Production Architecture (Scaling Beyond Demos)
+## Real-World Production Architecture (Scaling Beyond Demos)
 
 In production enterprise deployments, CausalPulse AI functions as a continuous, streaming intelligence pipeline:
 
@@ -317,7 +317,7 @@ In production enterprise deployments, CausalPulse AI functions as a continuous, 
 
 ---
 
-## ❓ Troubleshooting & FAQ
+## Troubleshooting & FAQ
 
 **Q: Why does CausalPulse AI enter "Active Ambiguity Mode"?**  
 **A:** When telemetry is missing or qualitative evidence is contradictory, the engine calculates a composite confidence score. If $\text{Score} < 0.65$, CausalPulse deliberately abstains from guessing root causes to prevent costly hallucinations. Instead, it generates a Guided Diagnostic Hypothesis Tree with targeted SQL queries for human analysts.
@@ -347,9 +347,9 @@ In production enterprise deployments, CausalPulse AI functions as a continuous, 
 
 ---
 
-## 👥 Maintainers
+## Maintainers
 
-Developed with pride for the **Accenture Innovation Challenge 2026 (Round 2: Prototype Development)**:
+Developed for the **Accenture Innovation Challenge 2026 (Round 2: Prototype Development)**:
 
 * **Vedant Sachin Lohare (Team Leader)**
   * Indian Institute of Technology, Kanpur — Aerospace Engineering ('28)
